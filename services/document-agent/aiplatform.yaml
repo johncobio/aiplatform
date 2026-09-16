@@ -1,0 +1,14 @@
+# Proposed by aiplatform propose: HA document agent on the upstream llama.cpp engine.
+name: document-agent
+model: qwen2.5-0.5b-instruct
+engine: llamacpp-server
+cpu: 1
+memory: 1Gi
+environment: staging
+port: 8000
+autoscaling:
+  min: 2
+  max: 3
+  metric: queue
+  target: 2
+env: {}
