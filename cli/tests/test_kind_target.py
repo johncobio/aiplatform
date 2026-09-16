@@ -158,3 +158,18 @@ def test_status_reads_deployment(config, tmp_path, kind_runner):
     assert st.running and st.ready
     assert st.image == "aiplatform/demo:t9"
     assert "2/2" in st.detail
+
+
+def test_upstream_engine_skips_build_and_load(config, tmp_path, kind_runner):
+    cfg = config.model_copy(update={"engine": "llamacpp-server"})
+    target = KindTarget(runner=kind_runner, wait_for_http=lambda *a, **k: 0.0)
+    ctx = make_ctx(cfg, tmp_path)
+    (tmp_path / "Dockerfile").unlink()  # no Dockerfile needed for an upstream engine
+    result = Pipeline().run(target.deploy_steps(ctx), ctx)
+    assert result.succeeded, result.error
+    assert not kind_runner.find("docker", "build") and not kind_runner.find("kind", "load")
+    helm = kind_runner.find("helm")[0]
+    generated = yaml.safe_load(Path(helm[helm.index("-f", helm.index("-f") + 1) + 1]).read_text())
+    assert generated["engine"] == {"type": "llamacpp-server"}
+    assert "image" not in generated
+    assert ctx["state"].load("dev", "demo").current.tag == "llamacpp-server"

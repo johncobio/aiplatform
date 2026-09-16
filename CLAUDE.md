@@ -100,6 +100,9 @@ See `TODO.md` for the backlog and `PROJECT_STATUS.md` for where we are.
 - Docker Desktop is set to 4 vCPUs (of 6) and 4 GB so the VM does not starve
   the host; the host swapping is what stalls etcd, not the cluster itself.
 - Dashboards: edit `scripts/gen_dashboard.py` and regenerate; never hand-edit the JSON.
+- Metrics contract: dashboards/HPA/alerts read `aiplatform:*` recording rules only
+  (`deploy/observability/rules.yaml`). New engines add rules, not dashboard changes.
+- ingress-nginx on kind uses `updateStrategy: Recreate` (hostPort on one node).
 - Multi-source Argo CD Applications report `status.sync.revisions` (list),
   not `revision`.
 - CI only builds images when `services/llm-service/**` changes; the gitops

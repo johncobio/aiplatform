@@ -57,11 +57,16 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [x] Benchmarks recorded in `docs/benchmarks/`
 - [ ] Larger-scale runs need more than one node: revisit on EKS with a node group autoscaler
 
-## V6 — Real LLM serving
+## V6 — Inference engines
 
-- [ ] vLLM deployment (GPU node group, cost-gated, spot where possible)
-- [ ] vLLM native metrics wired into dashboards
-- [ ] Model catalog entries for GPU models
+- [x] `engine` in aiplatform.yaml and chart: builtin, llamacpp-server, vllm
+- [x] llama.cpp server engine runs locally (init-container model fetch, pinned image, non-root)
+- [x] vLLM engine rendered and checked in CI (GPU resources, HF token secret); real runs need the AWS GPU node group
+- [x] Recording rules normalising llm_* / llamacpp:* / vllm:* into aiplatform:*; ingress-based HTTP metrics
+- [ ] vLLM on EKS GPU node group (cost-gated, spot where possible) — AWS section
+- [ ] Catalog: more GPU models once vLLM runs for real
+
+- [ ] Builtin image: per-architecture native llama.cpp build (`GGML_NATIVE=ON` on arm64/amd64 runners) and re-measure vs upstream (2.9× gap)
 
 ## V7 — AI infrastructure agent with guardrails
 

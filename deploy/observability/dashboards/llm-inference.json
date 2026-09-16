@@ -38,10 +38,10 @@
         },
         "label": "Environment",
         "query": {
-          "query": "label_values(llm_requests_total, environment)",
+          "query": "label_values(aiplatform:llm_pending_requests, environment)",
           "refId": "env"
         },
-        "definition": "label_values(llm_requests_total, environment)",
+        "definition": "label_values(aiplatform:llm_pending_requests, environment)",
         "refresh": 2,
         "sort": 1,
         "current": {
@@ -59,10 +59,10 @@
         },
         "label": "Workload",
         "query": {
-          "query": "label_values(llm_requests_total{environment=\"$environment\"}, workload)",
+          "query": "label_values(aiplatform:llm_pending_requests{environment=\"$environment\"}, workload)",
           "refId": "wl"
         },
-        "definition": "label_values(llm_requests_total{environment=\"$environment\"}, workload)",
+        "definition": "label_values(aiplatform:llm_pending_requests{environment=\"$environment\"}, workload)",
         "refresh": 2,
         "sort": 1,
         "current": {
@@ -120,7 +120,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval]))",
+          "expr": "sum(aiplatform:http_requests:rate5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "Request rate",
           "refId": "A",
           "range": true
@@ -154,7 +154,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "P95 latency",
+      "title": "P95 latency (ingress)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -172,8 +172,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(llm_request_duration_seconds_bucket{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (le))",
-          "legendFormat": "P95 latency",
+          "expr": "max(aiplatform:http_request_duration_seconds:p95_5m{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "P95 latency (ingress)",
           "refId": "A",
           "range": true
         }
@@ -224,7 +224,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_completion_tokens_total{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval]))",
+          "expr": "sum(aiplatform:llm_completion_tokens:rate5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "Tokens / s",
           "refId": "A",
           "range": true
@@ -276,7 +276,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\",status=\"error\"}[5m])) or vector(0)) / clamp_min(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[5m])), 1e-9)",
+          "expr": "(sum(aiplatform:http_requests:rate5m{environment=\"$environment\",workload=\"$workload\",status=~\"5..\"}) or vector(0)) / clamp_min(sum(aiplatform:http_requests:rate5m{environment=\"$environment\",workload=\"$workload\"}), 1e-9)",
           "legendFormat": "Error rate",
           "refId": "A",
           "range": true
@@ -378,8 +378,8 @@
     {
       "id": 7,
       "type": "stat",
-      "title": "Queue depth",
-      "description": "Requests waiting for a generation slot. The V5 autoscaling signal.",
+      "title": "Pending requests",
+      "description": "Requests queued or generating across replicas (aiplatform:llm_pending_requests). The autoscaling signal.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -396,8 +396,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(llm_queue_depth{environment=\"$environment\",workload=\"$workload\"})",
-          "legendFormat": "Queue depth",
+          "expr": "sum(aiplatform:llm_pending_requests{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "Pending requests",
           "refId": "A",
           "range": true
         }
@@ -459,8 +459,8 @@
     {
       "id": 9,
       "type": "timeseries",
-      "title": "Requests / s by status",
-      "description": "",
+      "title": "Requests / s at ingress by HTTP status",
+      "description": "Measured by ingress-nginx: identical for every engine.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -477,7 +477,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (status)",
+          "expr": "sum(aiplatform:http_requests:rate5m{environment=\"$environment\",workload=\"$workload\"}) by (status)",
           "legendFormat": "{{status}}",
           "refId": "A",
           "range": true
@@ -505,7 +505,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "ok"
+              "options": "200"
             },
             "properties": [
               {
@@ -520,7 +520,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "error"
+              "options": "500"
             },
             "properties": [
               {
@@ -535,7 +535,22 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "rejected"
+              "options": "503"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F29900"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "429"
             },
             "properties": [
               {
@@ -564,8 +579,8 @@
     {
       "id": 10,
       "type": "timeseries",
-      "title": "Latency P50 / P95 / P99",
-      "description": "End-to-end request time including queue wait (llm_request_duration_seconds).",
+      "title": "Latency at ingress P50 / P95 / P99",
+      "description": "nginx_ingress_controller_request_duration_seconds for this workload's Ingress; engine-agnostic.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -582,7 +597,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum(rate(llm_request_duration_seconds_bucket{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (le))",
+          "expr": "max(aiplatform:http_request_duration_seconds:p50_5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "p50",
           "refId": "A",
           "range": true
@@ -592,7 +607,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(llm_request_duration_seconds_bucket{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (le))",
+          "expr": "max(aiplatform:http_request_duration_seconds:p95_5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "p95",
           "refId": "B",
           "range": true
@@ -602,7 +617,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(llm_request_duration_seconds_bucket{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (le))",
+          "expr": "max(aiplatform:http_request_duration_seconds:p99_5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "p99",
           "refId": "C",
           "range": true
@@ -688,29 +703,16 @@
     },
     {
       "id": 11,
-      "type": "row",
-      "title": "Inference",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 14,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 12,
       "type": "timeseries",
-      "title": "Tokens / s",
-      "description": "",
+      "title": "Engine-reported latency P50 / P95 / P99",
+      "description": "From the engine's own histogram (builtin llm_request_duration_seconds, vLLM e2e latency). Empty for llama.cpp server, which has none. [engine-specific]",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
-        "y": 15,
+        "y": 14,
         "w": 12,
         "h": 8
       },
@@ -720,7 +722,250 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_completion_tokens_total{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval]))",
+          "expr": "max(aiplatform:llm_request_duration_seconds:p50_5m{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(aiplatform:llm_request_duration_seconds:p95_5m{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "p95",
+          "refId": "B",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max(aiplatform:llm_request_duration_seconds:p99_5m{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "p99",
+          "refId": "C",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8AB4F8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#4285F4"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#174EA6"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Requests / s reported by engine, by status",
+      "description": "Engine-native request accounting where available. [engine-specific]",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(aiplatform:llm_requests:rate5m{environment=\"$environment\",workload=\"$workload\"}) by (status)",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ok"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#34A853"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#EA4335"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rejected"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F29900"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Inference",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Tokens / s",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(aiplatform:llm_completion_tokens:rate5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "completion tokens/s",
           "refId": "A",
           "range": true
@@ -730,7 +975,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_prompt_tokens_total{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval]))",
+          "expr": "sum(aiplatform:llm_prompt_tokens:rate5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "prompt tokens/s",
           "refId": "B",
           "range": true
@@ -800,7 +1045,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 15,
       "type": "timeseries",
       "title": "Per-request generation speed (P50)",
       "description": "Median of llm_generation_tokens_per_second.",
@@ -810,7 +1055,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 15,
+        "y": 23,
         "w": 6,
         "h": 8
       },
@@ -820,7 +1065,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum(rate(llm_generation_tokens_per_second_bucket{environment=\"$environment\",workload=\"$workload\"}[$__rate_interval])) by (le))",
+          "expr": "max(aiplatform:llm_generation_tokens_per_second:p50_5m{environment=\"$environment\",workload=\"$workload\"})",
           "legendFormat": "tok/s per request",
           "refId": "A",
           "range": true
@@ -875,9 +1120,9 @@
       }
     },
     {
-      "id": 14,
+      "id": 16,
       "type": "timeseries",
-      "title": "Queue depth and in-flight",
+      "title": "Pending requests (queued + in-flight)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -885,7 +1130,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 15,
+        "y": 23,
         "w": 6,
         "h": 8
       },
@@ -895,8 +1140,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(llm_queue_depth{environment=\"$environment\",workload=\"$workload\"})",
-          "legendFormat": "queued",
+          "expr": "sum(aiplatform:llm_pending_requests{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "pending",
           "refId": "A",
           "range": true
         },
@@ -905,8 +1150,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(llm_inflight_requests{environment=\"$environment\",workload=\"$workload\"})",
-          "legendFormat": "in-flight",
+          "expr": "sum(aiplatform:llm_pending_requests{environment=\"$environment\",workload=\"$workload\"}) / clamp_min(sum(kube_deployment_status_replicas_ready{namespace=\"aiplatform-$environment\",deployment=\"$workload\"}), 1)",
+          "legendFormat": "per pod (HPA signal)",
           "refId": "B",
           "range": true
         }
@@ -919,7 +1164,7 @@
           },
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 10,
+            "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
             "spanNulls": true,
@@ -933,7 +1178,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "queued"
+              "options": "pending"
             },
             "properties": [
               {
@@ -948,7 +1193,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "in-flight"
+              "options": "per pod (HPA signal)"
             },
             "properties": [
               {
@@ -975,20 +1220,20 @@
       }
     },
     {
-      "id": 15,
+      "id": 17,
       "type": "row",
       "title": "Capacity",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 31,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 16,
+      "id": 18,
       "type": "timeseries",
       "title": "Replicas",
       "description": "",
@@ -998,7 +1243,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 32,
         "w": 8,
         "h": 8
       },
@@ -1113,7 +1358,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 19,
       "type": "timeseries",
       "title": "CPU (cores)",
       "description": "",
@@ -1123,7 +1368,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 24,
+        "y": 32,
         "w": 8,
         "h": 8
       },
@@ -1213,7 +1458,7 @@
       }
     },
     {
-      "id": 18,
+      "id": 20,
       "type": "timeseries",
       "title": "Memory (working set)",
       "description": "",
@@ -1223,7 +1468,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 24,
+        "y": 32,
         "w": 8,
         "h": 8
       },
@@ -1313,31 +1558,31 @@
       }
     },
     {
-      "id": 19,
+      "id": 21,
       "type": "row",
       "title": "Model and cost (estimates)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 40,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 20,
+      "id": 22,
       "type": "stat",
-      "title": "Model load time",
-      "description": "",
+      "title": "Model load time (builtin)",
+      "description": " [engine-specific]",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
-        "y": 33,
-        "w": 6,
+        "y": 41,
+        "w": 4,
         "h": 4
       },
       "targets": [
@@ -1347,7 +1592,7 @@
             "uid": "${datasource}"
           },
           "expr": "max(llm_model_load_seconds{environment=\"$environment\",workload=\"$workload\"})",
-          "legendFormat": "Model load time",
+          "legendFormat": "Model load time (builtin)",
           "refId": "A",
           "range": true
         }
@@ -1378,7 +1623,7 @@
       }
     },
     {
-      "id": 21,
+      "id": 23,
       "type": "stat",
       "title": "Est. infra cost / hour",
       "description": "node_hourly_cost \u00d7 ready replicas. An estimate: one replica is assumed to occupy one node's worth of the configured hourly price.",
@@ -1387,9 +1632,9 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "x": 6,
-        "y": 33,
-        "w": 6,
+        "x": 4,
+        "y": 41,
+        "w": 5,
         "h": 4
       },
       "targets": [
@@ -1430,7 +1675,7 @@
       }
     },
     {
-      "id": 22,
+      "id": 24,
       "type": "stat",
       "title": "Est. cost per 1k requests",
       "description": "Estimated hourly cost divided by requests per hour (1h window), \u00d71000.",
@@ -1439,9 +1684,9 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "x": 12,
-        "y": 33,
-        "w": 6,
+        "x": 9,
+        "y": 41,
+        "w": 5,
         "h": 4
       },
       "targets": [
@@ -1450,7 +1695,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "($node_hourly_cost * sum(kube_deployment_status_replicas_ready{namespace=\"aiplatform-$environment\",deployment=\"$workload\"})) / clamp_min(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[1h])) * 3600, 1e-9) * 1000",
+          "expr": "($node_hourly_cost * sum(kube_deployment_status_replicas_ready{namespace=\"aiplatform-$environment\",deployment=\"$workload\"})) / clamp_min(sum(aiplatform:http_requests:rate5m{environment=\"$environment\",workload=\"$workload\"}) * 3600, 1e-9) * 1000",
           "legendFormat": "Est. cost per 1k requests",
           "refId": "A",
           "range": true
@@ -1482,7 +1727,7 @@
       }
     },
     {
-      "id": 23,
+      "id": 25,
       "type": "stat",
       "title": "Model",
       "description": "",
@@ -1491,9 +1736,9 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "x": 18,
-        "y": 33,
-        "w": 6,
+        "x": 14,
+        "y": 41,
+        "w": 5,
         "h": 4
       },
       "targets": [
@@ -1502,11 +1747,10 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "llm_model_info{environment=\"$environment\",workload=\"$workload\"}",
-          "legendFormat": "Model",
+          "expr": "count by (model) (up{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "{{model}}",
           "refId": "A",
           "range": true,
-          "format": "table",
           "instant": true
         }
       ],
@@ -1526,7 +1770,60 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^model$/",
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "name",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Engine",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 41,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count by (engine) (up{environment=\"$environment\",workload=\"$workload\"})",
+          "legendFormat": "{{engine}}",
+          "refId": "A",
+          "range": true,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#4285F4"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
           "values": false
         },
         "colorMode": "value",

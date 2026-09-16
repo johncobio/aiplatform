@@ -20,4 +20,6 @@ spec:
           replacement: {{ include "llm-workload.fullname" . }}
         - targetLabel: model
           replacement: {{ .Values.model.name | quote }}
+        - targetLabel: engine
+          replacement: {{ .Values.engine.type | quote }}
 {{- end }}

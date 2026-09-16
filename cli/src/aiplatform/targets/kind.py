@@ -55,15 +55,16 @@ def build_values(cfg: WorkloadConfig, image: str, tag: str) -> dict:
     """
     spec = cfg.model_spec
     repository, _, _ = image.rpartition(":")
-    return {
+    values: dict = {
         "nameOverride": cfg.name,
         "environment": cfg.environment,
-        "image": {"repository": repository, "tag": tag},
+        "engine": {"type": cfg.engine_type},
         "port": cfg.port,
         "model": {
             "backend": spec.backend,
             "name": spec.name,
             "url": spec.artifact_url,
+            "hfRepo": spec.hf_repo,
             "contextLength": spec.context_length,
             "threads": max(1, int(cfg.cpu_cores)),
         },
@@ -88,6 +89,21 @@ def build_values(cfg: WorkloadConfig, image: str, tag: str) -> dict:
         },
         "ingress": {"host": ingress_host(cfg)},
     }
+    if cfg.builds_image:
+        values["image"] = {"repository": repository, "tag": tag}
+    return values
+
+
+class EngineImageStep(Step):
+    """Upstream engines ship their own image; nothing to build, load or push."""
+
+    name = "Engine image resolved"
+
+    def run(self, ctx: Context) -> str | None:
+        cfg: WorkloadConfig = ctx["config"]
+        ctx["image"] = f"engine/{cfg.engine_type}"
+        ctx["tag"] = cfg.engine_type
+        return f"{cfg.engine_type} (upstream image pinned in the chart)"
 
 
 class KindTarget(Target):
@@ -109,11 +125,14 @@ class KindTarget(Target):
         cfg: WorkloadConfig = ctx["config"]
         if cfg.model_spec.requires_gpu:
             raise TargetError(f"model {cfg.model!r} requires a GPU; kind clusters are CPU-only")
+        image_steps: list[Step] = (
+            [DockerAvailableStep(self._run), BuildImageStep(self._run), _LoadImage(self)]
+            if cfg.builds_image
+            else [EngineImageStep()]
+        )
         return [
-            DockerAvailableStep(self._run),
             _ClusterReachable(self),
-            BuildImageStep(self._run),
-            _LoadImage(self),
+            *image_steps,
             _HelmUpgrade(self),
             _RolloutStatus(self),
             HealthCheckStep(self._wait),

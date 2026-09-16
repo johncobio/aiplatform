@@ -4,8 +4,8 @@ _Last updated: 2026-09-16_
 
 ## Current phase
 
-**V5 complete (load testing + autoscaling).** Next: V6 real inference
-engines (vLLM contract, llama.cpp server). AWS is deliberately last (ADR 0005).
+**V6 complete (inference engines).** Next: V7 AI-proposed infrastructure
+changes with guardrails and human approval. AWS is deliberately last (ADR 0005).
 
 ## Completed
 
@@ -78,6 +78,21 @@ engines (vLLM contract, llama.cpp server). AWS is deliberately last (ADR 0005).
   only +14 % (CPU contention). 0 % errors across 352 requests.
 - Baseline: `docs/benchmarks/2026-09-16-v5-load-and-autoscaling.md`.
 
+### V6 — Inference engines
+- `engine: builtin | llamacpp-server | vllm` in `aiplatform.yaml`; the chart
+  renders engine-specific container, args, probes, init-container model
+  fetch (llama.cpp server) and GPU resources + HF token (vLLM). ADR 0009.
+- Upstream engines skip build/load/registry steps; `services/qwen-server` is a
+  one-file, no-code workload served by the pinned upstream llama.cpp server.
+- Metrics contract: recording rules normalise `llm_*`, `llamacpp:*` and
+  `vllm:*` into `aiplatform:*`; ingress-nginx metrics give engine-agnostic
+  HTTP rate/latency. HPA (adapter) and dashboard read only the contract.
+- vLLM validated by `scripts/check_chart.sh` in CI (GPU limits, model args,
+  token secret); real runs need the AWS GPU node group.
+- Verified live: qwen-server deployed to dev, HPA reading pending requests
+  for the upstream engine, engine comparison load tests.
+- Baseline: `docs/benchmarks/2026-09-16-v6-engines.md`.
+
 ## Current architecture
 
 See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker, `kind`
@@ -98,6 +113,11 @@ direct kind deploys, `staging` = GitOps.
   contention); meaningful autoscaling results need multi-node (EKS).
 - Jaeger v2 exposes the query API under `/api/v3/`; the UI at
   `jaeger.127.0.0.1.nip.io` works as usual.
+- llama.cpp server exposes no request-latency histogram; its P95 comes from
+  the ingress (`aiplatform:http_request_duration_seconds:*`). The
+  "Engine-reported latency" and "Model load time" panels are builtin/vLLM only.
+- ingress-nginx on a single node needs `updateStrategy: Recreate` (hostPort);
+  set in the kind values, patched live on the current cluster.
 
 - **Laptop capacity.** Docker Desktop must stay at 4 GB (5 GB pushed macOS
   into ~9 GB of swap and crash-looped the kind control plane). The node has
@@ -132,9 +152,9 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **V6 inference engines:** an `engine` abstraction in the chart and CLI so
-   a workload can run the built-in service, upstream llama.cpp server, or
-   vLLM (GPU, validated by template tests until the AWS phase), with
-   recording rules normalising each engine's native metrics into the
-   `aiplatform:*` series the dashboard and HPA already use.
-2. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.
+1. **V7 AI infrastructure agent with guardrails:** `aiplatform propose "<request>"`
+   generates Terraform/config changes → fmt → validate → plan → Checkov →
+   OPA/Conftest → cost estimate → PR for human approval → Argo CD.
+2. **V8 reliability:** SLOs on the `aiplatform:*` contract, Alertmanager,
+   chaos experiments, runbooks.
+3. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.

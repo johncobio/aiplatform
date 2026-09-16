@@ -10,12 +10,14 @@ and GitOps.
 # aiplatform.yaml
 name: document-agent
 model: qwen2.5-0.5b-instruct
+engine: llamacpp-server       # or builtin (this repo's service) or vllm (GPU)
 cpu: 2
-memory: 2Gi
+memory: 1Gi
 environment: dev
 autoscaling:
   min: 1
   max: 3
+  metric: queue               # scale on pending requests per pod
 ```
 
 ```
@@ -41,7 +43,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V5 complete locally; AWS deliberately deferred.** Working today:
+**V6 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -61,6 +63,11 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   depth + in-flight per pod) through prometheus-adapter, chosen in
   `aiplatform.yaml` with `autoscaling.metric: queue`. k6 load tests and
   measured results in `docs/benchmarks/`.
+- **Pluggable inference engines**: `engine: builtin | llamacpp-server | vllm`.
+  The upstream llama.cpp server runs locally with no code and no build
+  (`services/qwen-server`); vLLM renders with GPU resources for the AWS phase.
+  Recording rules normalise every engine's metrics so dashboards and the HPA
+  never change.
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -175,7 +182,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 | V3 | GitHub Actions CI, GHCR publishing, Argo CD GitOps (done) |
 | V4 | Prometheus, Grafana, OpenTelemetry traces, Jaeger, inference dashboard (done) |
 | V5 | k6 load tests, HPA on pending requests, benchmarks (done) |
-| V6 | vLLM on GPU nodes |
+| V6 | Engine abstraction: builtin, llama.cpp server (runs locally), vLLM contract (GPU, AWS phase) (done) |
 | V7 | AI-proposed infrastructure changes with validation, policy, cost and human approval gates |
 | V8 | SLOs, alerting, chaos testing, runbooks |
 | AWS | Terraform apply: state bucket, VPC, ECR, EKS; same chart and GitOps flow on a real cluster |

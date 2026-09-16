@@ -12,6 +12,7 @@ from aiplatform.errors import ConfigError
 _DNS_LABEL = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
 
 Environment = Literal["dev", "staging"]
+Engine = Literal["builtin", "llamacpp-server", "vllm"]
 
 
 class Autoscaling(BaseModel):
@@ -47,6 +48,11 @@ class WorkloadConfig(BaseModel):
 
     name: str = Field(description="DNS-1123 label, used for containers, images and services")
     model: str = Field(description="Model name from the platform catalog")
+    engine: Engine | None = Field(
+        None,
+        description="Inference engine: builtin (this repo's service), llamacpp-server, vllm. "
+        "Default: builtin for CPU/GGUF models, vllm for GPU models",
+    )
     cpu: str | int | float = Field(description="CPU request, e.g. 2 or 500m")
     memory: str = Field(description="Memory request, e.g. 2Gi")
     environment: Environment
@@ -96,7 +102,38 @@ class WorkloadConfig(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _engine_matches_model(self) -> "WorkloadConfig":
+        spec = self.model_spec
+        engine = self.engine_type
+        if engine == "vllm" and spec.backend != "vllm":
+            raise ValueError(
+                f"engine vllm needs a vllm catalog model; {spec.name!r} is {spec.backend}"
+            )
+        if engine != "vllm" and spec.backend == "vllm":
+            raise ValueError(f"model {spec.name!r} is served by vllm; set engine: vllm")
+        return self
+
     # Derived views -------------------------------------------------------
+
+    @property
+    def engine_type(self) -> str:
+        """Resolved engine: explicit value, else vllm for vllm models, else builtin."""
+        if self.engine:
+            return self.engine
+        return "vllm" if self.model_spec.backend == "vllm" else "builtin"
+
+    @property
+    def health_paths(self) -> tuple[str, str]:
+        """(liveness, readiness) HTTP paths for the resolved engine."""
+        if self.engine_type == "builtin":
+            return ("/healthz", "/readyz")
+        return ("/health", "/health")
+
+    @property
+    def builds_image(self) -> bool:
+        """Only the builtin engine is built from the workload directory."""
+        return self.engine_type == "builtin"
 
     @property
     def cpu_cores(self) -> float:

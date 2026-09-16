@@ -99,3 +99,22 @@ def test_autoscaling_metric_and_target():
         WorkloadConfig.model_validate(
             {**VALID, "autoscaling": {"min": 1, "max": 3, "metric": "gpu"}}
         )
+
+
+def test_engine_defaults_and_validation():
+    cfg = WorkloadConfig.model_validate(VALID)
+    assert cfg.engine_type == "builtin" and cfg.builds_image
+    cfg = WorkloadConfig.model_validate({**VALID, "engine": "llamacpp-server"})
+    assert cfg.engine_type == "llamacpp-server" and not cfg.builds_image
+    gpu = {**VALID, "model": "llama-3.1-8b-instruct", "memory": "16Gi"}
+    assert WorkloadConfig.model_validate(gpu).engine_type == "vllm"
+    with pytest.raises(ValidationError, match="engine: vllm"):
+        WorkloadConfig.model_validate({**gpu, "engine": "builtin"})
+    with pytest.raises(ValidationError, match="needs a vllm"):
+        WorkloadConfig.model_validate({**VALID, "engine": "vllm"})
+
+
+def test_health_paths_follow_engine():
+    assert WorkloadConfig.model_validate(VALID).health_paths == ("/healthz", "/readyz")
+    cfg = WorkloadConfig.model_validate({**VALID, "engine": "llamacpp-server"})
+    assert cfg.health_paths == ("/health", "/health")

@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V5 (Docker, kind and GitOps targets; CI; Argo CD; Prometheus/Grafana/OTel/Jaeger; HPA on pending requests via prometheus-adapter; k6 load tests; AWS Terraform written, not applied)._
+_Status: V6 (engines: builtin, llama.cpp server, vLLM contract; GitOps; observability; queue-based HPA; k6; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -41,7 +41,7 @@ flowchart LR
 
     subgraph Workload["llm-service container"]
         api[FastAPI\n/v1/chat/completions]
-        be[backend: llama.cpp | mock | vLLM (V6)]
+        be[engine: builtin | llama.cpp server | vLLM]
         met[/metrics Prometheus/]
         api --> be
         api --> met
@@ -131,7 +131,8 @@ proxying to a hosted API.
 
 ### Helm chart: `llm-workload` (`deploy/helm/llm-workload/`)
 
-The deployment contract for every Kubernetes target. Renders a Deployment
+The deployment contract for every Kubernetes target and every engine
+(`engine.type`: builtin, llamacpp-server, vllm; ADR 0009). Renders a Deployment
 (rolling update with zero unavailable, startup/readiness/liveness probes,
 non-root, read-only root filesystem, all capabilities dropped), Service,
 Ingress, HPA when `autoscaling.max > 1`, PDB when more than one replica can
@@ -172,6 +173,14 @@ limit, memory request equals the limit. Environment overrides live in
   request rate, P50/P95/P99, tokens/s, per-request generation speed, queue
   depth and in-flight, error rate, replicas vs HPA target, CPU and memory vs
   limits, model load time, estimated cost per hour and per 1k requests.
+
+### Engines and the metrics contract (`deploy/observability/rules.yaml`)
+
+Each engine's native metrics (`llm_*`, `llamacpp:*`, `vllm:*`) are recorded
+into one `aiplatform:*` vocabulary; ingress-nginx supplies engine-agnostic
+HTTP request rate and latency per Ingress (`aiplatform:http_*`). The HPA,
+dashboard and alerts consume only the normalised series. Upstream engines
+need no image build: `services/qwen-server` is a one-file workload.
 
 ### Autoscaling and load testing (`deploy/kind/prometheus-adapter.values.yaml`, `loadtest/`)
 

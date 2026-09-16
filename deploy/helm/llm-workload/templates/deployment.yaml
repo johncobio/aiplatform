@@ -1,6 +1,14 @@
-{{- if not .Values.image.tag }}
-{{- fail "image.tag is required (the aiplatform CLI sets it from the build)" }}
+{{- $engine := .Values.engine.type }}
+{{- if and (eq $engine "builtin") (not .Values.image.tag) }}
+{{- fail "image.tag is required for engine builtin (the aiplatform CLI sets it from the build)" }}
 {{- end }}
+{{- if and (eq $engine "llamacpp-server") (not .Values.model.url) }}
+{{- fail "model.url (GGUF) is required for engine llamacpp-server" }}
+{{- end }}
+{{- if and (eq $engine "vllm") (not .Values.model.hfRepo) }}
+{{- fail "model.hfRepo is required for engine vllm" }}
+{{- end }}
+{{- $modelFile := .Values.model.url | splitList "/" | last }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,6 +32,7 @@ spec:
       labels:
         {{- include "llm-workload.selectorLabels" . | nindent 8 }}
         aiplatform.io/environment: {{ .Values.environment }}
+        aiplatform.io/engine: {{ $engine }}
       annotations:
         {{- toYaml .Values.podAnnotations | nindent 8 }}
     spec:
@@ -31,9 +40,66 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: 30
+      {{- if eq $engine "llamacpp-server" }}
+      initContainers:
+        - name: fetch-model
+          image: {{ .Values.engine.downloader.image }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              if [ -s "/models/{{ $modelFile }}" ]; then echo "model cached"; exit 0; fi
+              curl -fsSL --retry 5 -o "/models/{{ $modelFile }}.part" "{{ .Values.model.url }}"
+              mv "/models/{{ $modelFile }}.part" "/models/{{ $modelFile }}"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      {{- end }}
       containers:
         - name: inference
+          {{- if eq $engine "llamacpp-server" }}
+          image: {{ .Values.engine.llamacppServer.image }}
+          args:
+            - "-m"
+            - "/models/{{ $modelFile }}"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - {{ .Values.port | quote }}
+            - "-c"
+            - {{ .Values.model.contextLength | quote }}
+            - "-t"
+            - {{ .Values.model.threads | quote }}
+            - "-np"
+            - {{ .Values.engine.llamacppServer.parallel | quote }}
+            - "--metrics"
+            - "--alias"
+            - {{ .Values.model.name | quote }}
+            {{- range .Values.engine.llamacppServer.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- else if eq $engine "vllm" }}
+          image: {{ .Values.engine.vllm.image }}
+          args:
+            - "--model"
+            - {{ .Values.model.hfRepo | quote }}
+            - "--served-model-name"
+            - {{ .Values.model.name | quote }}
+            - "--port"
+            - {{ .Values.port | quote }}
+            - "--max-model-len"
+            - {{ .Values.engine.vllm.maxModelLen | quote }}
+            - "--dtype"
+            - {{ .Values.engine.vllm.dtype | quote }}
+            - "--download-dir"
+            - "/models"
+            {{- range .Values.engine.vllm.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -42,6 +108,17 @@ spec:
               containerPort: {{ .Values.port }}
               protocol: TCP
           env:
+            {{- if and (eq $engine "vllm") .Values.engine.vllm.hfTokenSecret }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.engine.vllm.hfTokenSecret }}
+                  key: HF_TOKEN
+            {{- end }}
+            {{- if eq $engine "vllm" }}
+            - name: HF_HOME
+              value: /models/hf
+            {{- end }}
             - name: PORT
               value: {{ .Values.port | quote }}
             - name: LLM_BACKEND
@@ -68,18 +145,31 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          {{- $ready := ternary "/readyz" "/health" (eq $engine "builtin") }}
+          {{- $live := ternary "/healthz" "/health" (eq $engine "builtin") }}
           startupProbe:
-            httpGet: { path: /readyz, port: http }
+            httpGet: { path: {{ $ready }}, port: http }
             periodSeconds: 10
             failureThreshold: {{ .Values.probes.startupFailureThreshold }}
           readinessProbe:
-            httpGet: { path: /readyz, port: http }
+            httpGet: { path: {{ $ready }}, port: http }
             periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
           livenessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: {{ $live }}, port: http }
             periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
           resources:
+            {{- if eq $engine "vllm" }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+              nvidia.com/gpu: {{ .Values.engine.vllm.gpus }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+              nvidia.com/gpu: {{ .Values.engine.vllm.gpus }}
+            {{- else }}
             {{- toYaml .Values.resources | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: models
               mountPath: /models

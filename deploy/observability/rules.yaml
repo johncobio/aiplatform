@@ -1,5 +1,8 @@
-# Recording rules for the LLM inference signals. Dashboards and (V8) alerts
-# read these instead of recomputing histogram quantiles on every refresh.
+# Recording rules that normalise every engine's native metrics into one
+# aiplatform:* vocabulary (ADR 0009). Dashboards, the HPA (via
+# prometheus-adapter) and V8 alerts read only these.
+#
+# Sources:  builtin llm_*  |  llamacpp-server llamacpp:*  |  vllm vllm:*  |  ingress-nginx (engine-agnostic)
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -9,22 +12,81 @@ metadata:
     app.kubernetes.io/part-of: aiplatform
 spec:
   groups:
-    - name: aiplatform.llm.recording
-      interval: 30s
+    - name: aiplatform.llm.normalise
+      interval: 15s
       rules:
+        # Requests waiting or generating, per pod: the autoscaling signal.
+        - record: aiplatform:llm_pending_requests
+          expr: |
+            (sum by (environment, workload, engine, namespace, pod) (llm_queue_depth)
+              + sum by (environment, workload, engine, namespace, pod) (llm_inflight_requests))
+            or (sum by (environment, workload, engine, namespace, pod) (llamacpp:requests_processing)
+              + sum by (environment, workload, engine, namespace, pod) (llamacpp:requests_deferred))
+            or (sum by (environment, workload, engine, namespace, pod) (vllm:num_requests_running)
+              + sum by (environment, workload, engine, namespace, pod) (vllm:num_requests_waiting))
+        - record: aiplatform:llm_completion_tokens:rate5m
+          expr: |
+            sum by (environment, workload, model, engine) (rate(llm_completion_tokens_total[5m]))
+            or sum by (environment, workload, model, engine) (rate(llamacpp:tokens_predicted_total[5m]))
+            or sum by (environment, workload, model, engine) (rate(vllm:generation_tokens_total[5m]))
+        - record: aiplatform:llm_prompt_tokens:rate5m
+          expr: |
+            sum by (environment, workload, model, engine) (rate(llm_prompt_tokens_total[5m]))
+            or sum by (environment, workload, model, engine) (rate(llamacpp:prompt_tokens_total[5m]))
+            or sum by (environment, workload, model, engine) (rate(vllm:prompt_tokens_total[5m]))
+        # Median per-request generation speed (tokens/s) where the engine reports it.
+        - record: aiplatform:llm_generation_tokens_per_second:p50_5m
+          expr: |
+            histogram_quantile(0.5, sum by (environment, workload, engine, le) (rate(llm_generation_tokens_per_second_bucket[5m])))
+            or max by (environment, workload, engine) (llamacpp:predicted_tokens_seconds)
+            or (1 / histogram_quantile(0.5, sum by (environment, workload, engine, le) (rate(vllm:time_per_output_token_seconds_bucket[5m]))))
+        # Engine-native request accounting (llamacpp-server has none; see the ingress rules).
         - record: aiplatform:llm_requests:rate5m
-          expr: sum by (environment, workload, model) (rate(llm_requests_total[5m]))
+          expr: |
+            sum by (environment, workload, model, engine, status) (rate(llm_requests_total[5m]))
+            or label_replace(sum by (environment, workload, model, engine, finished_reason) (rate(vllm:request_success_total[5m])), "status", "ok", "", "")
         - record: aiplatform:llm_errors:ratio5m
           expr: >-
             (sum by (environment, workload) (rate(llm_requests_total{status="error"}[5m])) or vector(0))
             / clamp_min(sum by (environment, workload) (rate(llm_requests_total[5m])), 1e-9)
+        # Engine-native end-to-end latency where the engine exposes a histogram.
         - record: aiplatform:llm_request_duration_seconds:p50_5m
-          expr: histogram_quantile(0.5, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
+          expr: |
+            histogram_quantile(0.5, sum by (environment, workload, engine, le) (rate(llm_request_duration_seconds_bucket[5m])))
+            or histogram_quantile(0.5, sum by (environment, workload, engine, le) (rate(vllm:e2e_request_latency_seconds_bucket[5m])))
         - record: aiplatform:llm_request_duration_seconds:p95_5m
-          expr: histogram_quantile(0.95, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
+          expr: |
+            histogram_quantile(0.95, sum by (environment, workload, engine, le) (rate(llm_request_duration_seconds_bucket[5m])))
+            or histogram_quantile(0.95, sum by (environment, workload, engine, le) (rate(vllm:e2e_request_latency_seconds_bucket[5m])))
         - record: aiplatform:llm_request_duration_seconds:p99_5m
-          expr: histogram_quantile(0.99, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
-        - record: aiplatform:llm_completion_tokens:rate5m
-          expr: sum by (environment, workload, model) (rate(llm_completion_tokens_total[5m]))
-        - record: aiplatform:llm_pending_requests
-          expr: sum by (environment, workload, namespace, pod) (llm_queue_depth + on (namespace, pod) llm_inflight_requests)
+          expr: |
+            histogram_quantile(0.99, sum by (environment, workload, engine, le) (rate(llm_request_duration_seconds_bucket[5m])))
+            or histogram_quantile(0.99, sum by (environment, workload, engine, le) (rate(vllm:e2e_request_latency_seconds_bucket[5m])))
+    - name: aiplatform.http.ingress
+      interval: 15s
+      rules:
+        # Platform-level request rate and latency measured at ingress-nginx:
+        # identical for every engine, including ones with no request metrics.
+        # The Ingress's namespace arrives as `exported_namespace` (the scrape
+        # target's own namespace label takes precedence).
+        - record: aiplatform:http_requests:rate5m
+          expr: |
+            label_replace(
+              label_replace(sum by (exported_namespace, ingress, status) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[5m])),
+                "environment", "$1", "exported_namespace", "aiplatform-(.*)"),
+              "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:http_request_duration_seconds:p50_5m
+          expr: |
+            label_replace(label_replace(
+              histogram_quantile(0.5, sum by (exported_namespace, ingress, le) (rate(nginx_ingress_controller_request_duration_seconds_bucket{exported_namespace=~"aiplatform-.*"}[5m]))),
+              "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:http_request_duration_seconds:p95_5m
+          expr: |
+            label_replace(label_replace(
+              histogram_quantile(0.95, sum by (exported_namespace, ingress, le) (rate(nginx_ingress_controller_request_duration_seconds_bucket{exported_namespace=~"aiplatform-.*"}[5m]))),
+              "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:http_request_duration_seconds:p99_5m
+          expr: |
+            label_replace(label_replace(
+              histogram_quantile(0.99, sum by (exported_namespace, ingress, le) (rate(nginx_ingress_controller_request_duration_seconds_bucket{exported_namespace=~"aiplatform-.*"}[5m]))),
+              "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")

@@ -5,9 +5,31 @@
 nameOverride: ""
 environment: dev
 
+# Which inference engine serves the model (ADR 0009).
+#   builtin         the repo's llm-service image (image.repository/tag, CPU, llama.cpp inside)
+#   llamacpp-server upstream ghcr.io/ggml-org/llama.cpp server (CPU, GGUF from the model cache)
+#   vllm            vllm/vllm-openai on a GPU node (weights pulled from Hugging Face)
+engine:
+  type: builtin
+  llamacppServer:
+    image: ghcr.io/ggml-org/llama.cpp:server-v0.4.1
+    parallel: 2            # concurrent slots (-np); each slot shares the context window
+    extraArgs: []
+  vllm:
+    image: vllm/vllm-openai:v0.29.0
+    gpus: 1
+    maxModelLen: 8192
+    dtype: auto
+    extraArgs: []
+    hfTokenSecret: ""     # name of a Secret with key HF_TOKEN for gated models
+  # Init container that fetches a GGUF into the model cache when an engine
+  # cannot download by itself (llamacpp-server).
+  downloader:
+    image: curlimages/curl:8.11.1
+
 image:
   repository: aiplatform/llm-service
-  tag: ""            # required; set by the CLI
+  tag: ""            # required for engine builtin; set by the CLI
   pullPolicy: IfNotPresent
 
 replicaCount: 1      # used only when autoscaling.enabled is false
@@ -17,7 +39,8 @@ port: 8000
 model:
   backend: llamacpp
   name: ""
-  url: ""
+  url: ""              # GGUF download URL (builtin, llamacpp-server)
+  hfRepo: ""           # Hugging Face repo id (vllm)
   contextLength: 4096
   threads: 2
 

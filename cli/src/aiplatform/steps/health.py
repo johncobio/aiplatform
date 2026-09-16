@@ -17,9 +17,10 @@ class HealthCheckStep(Step):
     def run(self, ctx: Context) -> str | None:
         endpoint = ctx["endpoint"]
         timeout = float(ctx.get("timeout", 600))
+        live, ready = ctx["config"].health_paths
         t0 = time.monotonic()
-        self._wait(f"{endpoint}/healthz", timeout=min(60.0, timeout), label="liveness")
-        self._wait(f"{endpoint}/readyz", timeout=timeout, label="readiness")
+        self._wait(f"{endpoint}{live}", timeout=min(60.0, timeout), label="liveness")
+        self._wait(f"{endpoint}{ready}", timeout=timeout, label="readiness")
         waited = time.monotonic() - t0
         ctx["ready_seconds"] = waited
         return f"ready after {waited:.1f}s"

@@ -35,8 +35,10 @@ def main() -> int:
                 failures += 1
                 continue
             n = len(body["data"]["result"])
-            print(f"{'ok' if n else 'EMPTY':<11} {panel['title']} [{target['legendFormat']}]: {n} series")
-            failures += 0 if n else 1
+            optional = "[engine-specific]" in (panel.get("description") or "")
+            status = "ok" if n else ("empty-opt" if optional else "EMPTY")
+            print(f"{status:<11} {panel['title']} [{target['legendFormat']}]: {n} series")
+            failures += 0 if (n or optional) else 1
     print(f"\n{failures} problem(s)")
     return 1 if failures else 0
 

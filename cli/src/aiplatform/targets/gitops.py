@@ -27,6 +27,7 @@ from aiplatform.steps.record import RecordReleaseStep
 from aiplatform.targets.base import Target, TargetStatus
 from aiplatform.targets.kind import (
     KUBE_CONTEXT,
+    EngineImageStep,
     KindTarget,
     build_values,
     ingress_host,
@@ -105,7 +106,7 @@ class GitOpsTarget(Target):
         return [
             _ArgoReady(self),
             _NoDirectRelease(self),
-            _ImageAvailable(self),
+            _ImageAvailable(self) if cfg.builds_image else EngineImageStep(),
             _WriteDesiredState(self),
             _GitCommitPush(self, "deploy"),
             _ArgoSynced(self),

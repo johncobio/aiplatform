@@ -1,0 +1,15 @@
+# The same model served by the upstream llama.cpp server instead of the
+# repo's own service: no Dockerfile, no build; the platform pins the image.
+name: qwen-server
+model: qwen2.5-0.5b-instruct
+engine: llamacpp-server
+cpu: 2
+memory: 1Gi
+environment: dev
+port: 8000
+autoscaling:
+  min: 1
+  max: 2
+  metric: queue
+  target: 2
+env: {}

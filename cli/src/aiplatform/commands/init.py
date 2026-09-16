@@ -12,6 +12,7 @@ TEMPLATE = """\
 # aiplatform workload definition. Run `aiplatform validate` to check it.
 name: {name}
 model: qwen2.5-0.5b-instruct   # see `aiplatform models`
+# engine: builtin               # builtin | llamacpp-server | vllm (default follows the model)
 cpu: 2
 memory: 2Gi
 environment: dev

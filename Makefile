@@ -46,6 +46,7 @@ tf-validate: tf-fmt ## terraform init -backend=false && validate for every root/
 helm-lint: ## Lint and render the workload chart
 	helm lint deploy/helm/llm-workload --set image.tag=ci --set ingress.host=ci.local --strict
 	helm template ci deploy/helm/llm-workload --set image.tag=ci --set ingress.host=ci.local -f deploy/environments/dev/values.yaml >/dev/null
+	./scripts/check_chart.sh
 
 cluster-up: ## Create the local kind cluster with ingress-nginx and metrics-server
 	cd $(CLI) && uv run aiplatform cluster up

@@ -9,7 +9,6 @@ import json
 import urllib.parse
 import urllib.request
 
-SEL = '{environment="staging",workload="llm-service"}'
 
 
 def prom_range_max(prom: str, expr: str, start: str, end: str, step: str = "15s") -> float | None:
@@ -26,7 +25,11 @@ def main() -> None:
     ap.add_argument("--prom")
     ap.add_argument("--start")
     ap.add_argument("--end")
+    ap.add_argument("--env", default="staging")
+    ap.add_argument("--workload", default="llm-service")
     args = ap.parse_args()
+    sel = f'{{environment="{args.env}",workload="{args.workload}"}}'
+    ns = f"aiplatform-{args.env}"
     d = json.load(open(args.summary))
     m = d["metrics"]
     dur = m["http_req_duration"]["values"]
@@ -43,10 +46,10 @@ def main() -> None:
         rows.append(("Completion tokens total / per second", f"{m['llm_completion_tokens']['values']['count']:.0f} / {m['llm_completion_tokens']['values']['count'] / secs:.1f}"))
     if args.prom and args.start and args.end:
         server = {
-            "Max queue depth (server)": f"sum(llm_queue_depth{SEL})",
-            "Max ready replicas": 'kube_deployment_status_replicas_ready{namespace="aiplatform-staging",deployment="llm-service"}',
-            "Max server P95 (5m window)": f'aiplatform:llm_request_duration_seconds:p95_5m{{environment="staging",workload="llm-service"}}',
-            "Max pod CPU (cores)": 'sum(rate(container_cpu_usage_seconds_total{namespace="aiplatform-staging",container="inference"}[1m]))',
+            "Max pending requests (server)": f"sum(aiplatform:llm_pending_requests{sel})",
+            "Max ready replicas": f'kube_deployment_status_replicas_ready{{namespace="{ns}",deployment="{args.workload}"}}',
+            "Max ingress P95 (5m window)": f"max(aiplatform:http_request_duration_seconds:p95_5m{sel})",
+            "Max pod CPU (cores)": f'sum(rate(container_cpu_usage_seconds_total{{namespace="{ns}",container="inference",pod=~"{args.workload}-.*"}}[1m]))',
         }
         for label, expr in server.items():
             v = prom_range_max(args.prom, expr, args.start, args.end)

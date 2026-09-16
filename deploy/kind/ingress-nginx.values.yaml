@@ -1,5 +1,7 @@
 # ingress-nginx on kind: bind host ports 80/443 on the node that maps them to the laptop.
 controller:
+  updateStrategy:
+    type: Recreate   # hostPort on a single node: a surge pod can never schedule
   hostPort:
     enabled: true
   service:
@@ -21,3 +23,8 @@ controller:
       memory: 96Mi
   admissionWebhooks:
     enabled: false   # saves a pod on a memory-constrained laptop
+  metrics:
+    enabled: true    # platform-level request rate/latency per Ingress, engine-agnostic
+    serviceMonitor:
+      enabled: true
+      additionalLabels: {}

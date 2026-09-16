@@ -16,6 +16,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: aiplatform
 aiplatform.io/environment: {{ .Values.environment }}
 aiplatform.io/model: {{ .Values.model.name | default "none" | quote }}
+aiplatform.io/engine: {{ .Values.engine.type }}
 {{- end -}}
 
 {{- define "llm-workload.selectorLabels" -}}

@@ -226,3 +226,13 @@ def test_status_includes_argo_state(config, repo, gitops_runner):
 def test_values_path_layout(config, repo, runner):
     t = make_target(runner, repo)
     assert t.values_path(config) == Path(repo) / "deploy/workloads/dev/demo.values.yaml"
+
+
+def test_upstream_engine_skips_registry_check(config, repo, gitops_runner):
+    cfg = config.model_copy(update={"engine": "llamacpp-server"})
+    ctx = make_ctx(cfg, repo)
+    result = Pipeline().run(make_target(gitops_runner, repo).deploy_steps(ctx), ctx)
+    assert result.succeeded, result.error
+    assert not gitops_runner.find("docker", "manifest")
+    values = yaml.safe_load((repo / "deploy/workloads/dev/demo.values.yaml").read_text())
+    assert values["engine"]["type"] == "llamacpp-server" and "image" not in values
