@@ -4,7 +4,38 @@
 fullnameOverride: prom
 
 alertmanager:
-  enabled: false
+  enabled: true
+  alertmanagerSpec:
+    retention: 24h
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 128Mi }
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts: [alertmanager.127.0.0.1.nip.io]
+    paths: ["/"]
+    pathType: Prefix
+  config:
+    route:
+      receiver: "null"
+      group_by: [alertname, environment, workload]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers: [severity = page]
+          continue: true
+    receivers:
+      - name: "null"
+      # Example for a real channel (no secret in the repo; mount it as a Secret):
+      # - name: slack
+      #   slack_configs:
+      #     - api_url_file: /etc/alertmanager/secrets/slack/url
+      #       channel: "#aiplatform-alerts"
+      #       title: '{{ .CommonAnnotations.summary }}'
+      #       text: '{{ .CommonAnnotations.runbook }}'
 nodeExporter:
   enabled: false
 kubeControllerManager:
@@ -19,7 +50,7 @@ kubeProxy:
 defaultRules:
   create: true
   rules:
-    alertmanager: false
+    alertmanager: true
     etcd: false
     kubeProxy: false
     kubeSchedulerAlerting: false

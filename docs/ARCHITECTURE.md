@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V7 (proposal agent with guardrails; engines; GitOps; observability; autoscaling; AWS Terraform written, not applied)._
+_Status: V8 (all local phases complete: engines, GitOps, observability, autoscaling, proposal guardrails, SLOs/alerts/chaos; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -48,8 +48,10 @@ flowchart LR
     end
 
     subgraph Observability["observability namespace"]
-        prom[Prometheus + Operator\nServiceMonitor per workload]
+        prom[Prometheus + Operator\nServiceMonitor per workload\nSLO + burn-rate rules]
+        am[Alertmanager]
         graf[Grafana\nLLM Inference dashboard]
+        prom --> am
         otel[OTel Collector]
         jaeger[Jaeger]
         prom --> graf
@@ -213,6 +215,16 @@ and opens a pull request whose body is the report; a human merges; Argo CD
 deploys. `aiplatform guard` runs the same steps on a working tree, and CI
 runs `make policy`. Policies live in `policy/terraform`, `policy/kubernetes`
 with limits and list prices in `policy/data` and `policy/prices.yaml`.
+
+### Reliability (`deploy/observability/slo-rules.yaml`, `chaos/`, `docs/runbooks/`)
+
+SLIs are recorded from ingress-nginx per `(environment, workload)` so every
+engine is measured the same way (ADR 0011): availability (non-5xx) and
+latency (share under 5 s). Burn-rate alerts (14.4× / 6×) plus symptom alerts
+for the failure modes met while building the platform route to Alertmanager
+(null receiver locally, Secret-backed webhook documented). Each alert links a
+runbook. `chaos/experiment.py` injects faults with plain kubectl under load
+and measures recovery from cluster signals.
 
 ### Infrastructure (`infra/terraform/`)
 

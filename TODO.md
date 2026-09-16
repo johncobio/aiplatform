@@ -89,7 +89,11 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 
 ## V8 — Reliability
 
-- [ ] SLOs and error budget definitions
-- [ ] Alert rules and Alertmanager routing
-- [ ] Chaos experiments (pod kill, node drain, latency injection)
-- [ ] Incident runbooks in `docs/runbooks/`
+- [x] SLOs and error budget definitions (`docs/RELIABILITY.md`, recording rules at the ingress)
+- [x] Alert rules (burn-rate + symptom) and Alertmanager routing (null receiver; Secret-backed webhook documented)
+- [x] Chaos experiments with measured recovery: pod kill, metrics-pipeline outage, ingress restart
+- [x] Incident runbooks in `docs/runbooks/` linked from every alert
+- [ ] Node drain / multi-node experiments (needs EKS)
+- [ ] Latency injection (needs a mesh or a fault-injection sidecar)
+- [ ] Real notification receiver (Slack/webhook) from a Secret
+- [ ] Black-box probe outside the cluster (blackbox-exporter) so ingress outages count against the SLO

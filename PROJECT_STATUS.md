@@ -4,8 +4,9 @@ _Last updated: 2026-09-16_
 
 ## Current phase
 
-**V7 complete (proposal agent with guardrails).** Next: V8 reliability
-(SLOs, alerting, chaos, runbooks). AWS is deliberately last (ADR 0005).
+**V8 complete (reliability). All eight local phases are done.** What
+remains is the AWS phase: applying the Terraform, an EKS node group, the same
+GitOps and observability on a real cluster, and vLLM on GPU nodes (ADR 0005).
 
 ## Completed
 
@@ -109,6 +110,19 @@ _Last updated: 2026-09-16_
   unit tests with a fake client, not a live call. ADR 0010.
 - Baseline: `docs/benchmarks/2026-09-16-v7-guardrails.md`.
 
+### V8 — Reliability
+- SLOs on the ingress-based SLIs (availability 99.5 % / 30 d, latency 90 %
+  < 5 s / 1 h) with recording rules, error-budget remaining and an SLO row on
+  the dashboard; error-budget policy in `docs/RELIABILITY.md`. ADR 0011.
+- Alerting: multi-window burn-rate alerts + symptom alerts for every failure
+  mode met during V2–V7; Alertmanager enabled (null receiver locally,
+  Secret-backed webhook documented); every alert links a runbook.
+- Runbooks: error budget burn, latency, workload down, queue saturated, HPA
+  metric unavailable; incident template.
+- Chaos: `chaos/experiment.py` (pod kill, metrics-pipeline outage, ingress
+  restart) under load with measured recovery: 12.5 s, 46 s, 16 s outage.
+- Baseline: `docs/benchmarks/2026-09-16-v8-reliability.md`.
+
 ## Current architecture
 
 See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker, `kind`
@@ -125,6 +139,8 @@ direct kind deploys, `staging` = GitOps.
   deploy; pause observability first).
 - Cold-model-after-idle is mitigated (mlock + warm-up); not yet re-measured
   under deliberate memory pressure.
+- The ingress-based SLI cannot see an ingress outage (chaos: 16 s blind
+  window); needs an external black-box probe.
 - Horizontal scaling on the single kind node adds little capacity (CPU
   contention); meaningful autoscaling results need multi-node (EKS).
 - Jaeger v2 exposes the query API under `/api/v3/`; the UI at
@@ -168,10 +184,13 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **V8 reliability:** SLOs on the `aiplatform:*` contract (availability,
-   latency, error budget), Alertmanager + alert rules, chaos experiments
-   (pod kill, node pressure, dependency loss), incident runbooks, measured
-   recovery times.
-2. Run `aiplatform propose` with real Anthropic credentials and record the
+1. **AWS phase (cost-gated):** bootstrap the state bucket; apply `dev` with
+   `enable_compute=false` (≈ $0); `eks` module with a small Graviton node
+   group (≈ $73/mo control plane + nodes); ECR as the registry; Argo CD and
+   the observability stack on EKS; ingress via the AWS Load Balancer
+   Controller; then a GPU node group for vLLM (spot, cost-gated).
+2. Black-box probe outside the cluster for the ingress blind spot.
+3. Run `aiplatform propose` with real Anthropic credentials and record the
    first model-generated PR.
-3. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.
+4. Housekeeping: pin GitHub Actions to SHAs; split the image dependency
+   layer; native llama.cpp build for the builtin engine.

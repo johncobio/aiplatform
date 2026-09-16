@@ -6,7 +6,7 @@ CLI      := cli
 SERVICE  := services/llm-service
 TF_DIRS  := $(shell find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
 
-.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard loadtest policy guard
+.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard loadtest policy guard chaos
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -84,6 +84,10 @@ DURATION ?= 2m
 
 loadtest: ## Run a k6 scenario (SCENARIO=smoke|steady|ramp|step VUS=n DURATION=2m LOADTEST_URL=...)
 	k6 run -e BASE_URL=$(LOADTEST_URL) -e SCENARIO=$(SCENARIO) -e VUS=$(VUS) -e DURATION=$(DURATION) loadtest/k6/chat.js
+
+EXPERIMENT ?= pod-kill
+chaos: ## Run a chaos experiment with load and measured recovery (EXPERIMENT=pod-kill|adapter-outage|ingress-restart)
+	python3 chaos/experiment.py $(EXPERIMENT) --env dev --workload qwen-server
 
 run-local: ## Deploy the sample service locally with the CLI
 	cd $(CLI) && uv run aiplatform deploy --dir ../$(SERVICE) --target local

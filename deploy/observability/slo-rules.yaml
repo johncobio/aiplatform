@@ -1,0 +1,104 @@
+# SLOs and alerts for aiplatform workloads, on the engine-agnostic contract.
+# Definitions and rationale: docs/RELIABILITY.md. Runbooks: docs/runbooks/.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aiplatform-slo
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: aiplatform
+spec:
+  groups:
+    # --- SLIs (ingress-based; labels mapped to environment/workload) ---------
+    - name: aiplatform.slo.sli
+      interval: 30s
+      rules:
+        - record: aiplatform:sli_availability:ratio_rate5m
+          expr: >-
+            label_replace(label_replace((1 - ((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*", status=~"5.."}[5m])) or (sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[5m])) * 0)) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[5m])), 1e-9))), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:sli_availability:ratio_rate30m
+          expr: >-
+            label_replace(label_replace((1 - ((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*", status=~"5.."}[30m])) or (sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[30m])) * 0)) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[30m])), 1e-9))), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:sli_availability:ratio_rate1h
+          expr: >-
+            label_replace(label_replace((1 - ((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*", status=~"5.."}[1h])) or (sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[1h])) * 0)) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[1h])), 1e-9))), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:sli_availability:ratio_rate6h
+          expr: >-
+            label_replace(label_replace((1 - ((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*", status=~"5.."}[6h])) or (sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[6h])) * 0)) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_requests{exported_namespace=~"aiplatform-.*"}[6h])), 1e-9))), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:sli_latency_fast:ratio_rate5m
+          expr: >-
+            label_replace(label_replace((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_request_duration_seconds_bucket{exported_namespace=~"aiplatform-.*", le="5"}[5m])) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_request_duration_seconds_count{exported_namespace=~"aiplatform-.*"}[5m])), 1e-9)), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        - record: aiplatform:sli_latency_fast:ratio_rate1h
+          expr: >-
+            label_replace(label_replace((sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_request_duration_seconds_bucket{exported_namespace=~"aiplatform-.*", le="5"}[1h])) / clamp_min(sum by (exported_namespace, ingress) (rate(nginx_ingress_controller_request_duration_seconds_count{exported_namespace=~"aiplatform-.*"}[1h])), 1e-9)), "environment", "$1", "exported_namespace", "aiplatform-(.*)"), "workload", "$1", "ingress", "(.*)")
+        # Error budget remaining for the 30-day availability SLO (99.5 % => budget 0.5 %).
+        - record: aiplatform:error_budget_remaining:ratio
+          expr: 1 - ((1 - avg_over_time(aiplatform:sli_availability:ratio_rate1h[30d])) / 0.005)
+
+    # --- Alerts -------------------------------------------------------------
+    - name: aiplatform.slo.alerts
+      rules:
+        # Multi-window, multi-burn-rate (SRE workbook): 14.4x over 1h/5m pages, 6x over 6h/30m tickets.
+        - alert: AiplatformErrorBudgetBurnFast
+          expr: |
+            (1 - aiplatform:sli_availability:ratio_rate1h) > (14.4 * 0.005)
+            and (1 - aiplatform:sli_availability:ratio_rate5m) > (14.4 * 0.005)
+          for: 2m
+          labels: {severity: page, slo: availability}
+          annotations:
+            summary: "{{ $labels.workload }} ({{ $labels.environment }}) is burning its error budget fast"
+            description: "5xx ratio at ingress exceeds 14.4x the 99.5% budget rate over 1h and 5m."
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/error-budget-burn.md
+        - alert: AiplatformErrorBudgetBurnSlow
+          expr: |
+            (1 - aiplatform:sli_availability:ratio_rate6h) > (6 * 0.005)
+            and (1 - aiplatform:sli_availability:ratio_rate30m) > (6 * 0.005)
+          for: 15m
+          labels: {severity: ticket, slo: availability}
+          annotations:
+            summary: "{{ $labels.workload }} ({{ $labels.environment }}) is burning its error budget slowly"
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/error-budget-burn.md
+        - alert: AiplatformLatencySLOViolation
+          expr: aiplatform:sli_latency_fast:ratio_rate1h < 0.90
+          for: 10m
+          labels: {severity: ticket, slo: latency}
+          annotations:
+            summary: "{{ $labels.workload }} ({{ $labels.environment }}): fewer than 90% of requests finish within 5 s (1h)"
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/latency.md
+        - alert: AiplatformWorkloadDown
+          expr: |
+            kube_deployment_status_replicas_ready{namespace=~"aiplatform-.*"} == 0
+            and kube_deployment_spec_replicas{namespace=~"aiplatform-.*"} > 0
+          for: 2m
+          labels: {severity: page}
+          annotations:
+            summary: "{{ $labels.deployment }} in {{ $labels.namespace }} has no ready replicas"
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/workload-down.md
+        - alert: AiplatformQueueSaturated
+          expr: |
+            avg by (environment, workload) (aiplatform:llm_pending_requests) > 2
+            and on (environment, workload) (
+              label_replace(kube_horizontalpodautoscaler_status_current_replicas{namespace=~"aiplatform-.*"}, "workload", "$1", "horizontalpodautoscaler", "(.*)")
+              >= on (namespace, horizontalpodautoscaler) kube_horizontalpodautoscaler_spec_max_replicas
+            )
+          for: 10m
+          labels: {severity: ticket}
+          annotations:
+            summary: "{{ $labels.workload }} ({{ $labels.environment }}) is saturated at max replicas"
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/queue-saturated.md
+        - alert: AiplatformHPAMetricUnavailable
+          expr: |
+            kube_horizontalpodautoscaler_status_condition{namespace=~"aiplatform-.*", condition="ScalingActive", status="false"} == 1
+          for: 5m
+          labels: {severity: ticket}
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} in {{ $labels.namespace }} cannot read its metric"
+            description: "prometheus-adapter, Prometheus or the ServiceMonitor chain is broken; the HPA holds its current size."
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/hpa-metric-unavailable.md
+        - alert: AiplatformScrapeMissing
+          expr: up{job=~".*", workload!=""} == 0
+          for: 5m
+          labels: {severity: ticket}
+          annotations:
+            summary: "{{ $labels.workload }} ({{ $labels.environment }}) metrics endpoint is down"
+            runbook: https://github.com/johncobio/aiplatform/blob/main/docs/runbooks/workload-down.md

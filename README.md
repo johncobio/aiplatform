@@ -43,7 +43,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V7 complete locally; AWS deliberately deferred.** Working today:
+**V8 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -74,6 +74,10 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   Terraform and rendered Kubernetes manifests and a cost estimate against a
   budget, then opens a pull request for human approval. `aiplatform guard`
   runs the same checks on any working tree; CI runs the policies on every push.
+- **Reliability**: SLOs measured at the ingress (99.5 % availability / 30 d,
+  90 % of requests under 5 s / 1 h) with multi-window burn-rate alerts in
+  Alertmanager, a runbook per alert, and kubectl-driven chaos experiments
+  with measured recovery (`docs/RELIABILITY.md`, `chaos/`).
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -142,12 +146,22 @@ Nothing is applied by the agent: a passing proposal becomes a pull request
 (example: [#1](https://github.com/johncobio/aiplatform/pull/1)); merging it is
 the approval, and Argo CD deploys merged desired state.
 
+### Reliability
+
+```
+make chaos EXPERIMENT=pod-kill              # also: adapter-outage, ingress-restart
+open http://alertmanager.127.0.0.1.nip.io
+```
+SLOs, alert catalog and error-budget policy: `docs/RELIABILITY.md`. Runbooks:
+`docs/runbooks/`.
+
 ### Observability UIs (after `make cluster-up`)
 
 | UI | URL |
 |----|-----|
 | Grafana | http://grafana.127.0.0.1.nip.io (anonymous viewer; `admin` / `prom-operator` to edit) |
 | Prometheus | http://prometheus.127.0.0.1.nip.io |
+| Alertmanager | http://alertmanager.127.0.0.1.nip.io |
 | Jaeger | http://jaeger.127.0.0.1.nip.io |
 | Argo CD | http://argocd.127.0.0.1.nip.io |
 
@@ -204,7 +218,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 | V5 | k6 load tests, HPA on pending requests, benchmarks (done) |
 | V6 | Engine abstraction: builtin, llama.cpp server (runs locally), vLLM contract (GPU, AWS phase) (done) |
 | V7 | AI-proposed changes: Claude/JSON proposals → terraform/Checkov/OPA/cost guardrails → PR approval (done) |
-| V8 | SLOs, alerting, chaos testing, runbooks |
+| V8 | SLOs at the ingress, burn-rate alerts, Alertmanager, chaos experiments, runbooks (done) |
 | AWS | Terraform apply: state bucket, VPC, ECR, EKS; same chart and GitOps flow on a real cluster |
 
 ## Cost policy

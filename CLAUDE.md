@@ -31,6 +31,8 @@ control on AWS is a hard requirement, not a preference.
 | `deploy/workloads/<env>/` | Desired state: one values file per deployed workload (written by `deploy --target gitops`). |
 | `deploy/platform.yaml` | Platform settings: registry, GitOps repo/branch, Argo CD names. |
 | `.github/workflows/` | `ci.yml` (checks incl. OPA policies) and `build-image.yml` (multi-arch GHCR publish + Trivy). |
+| `chaos/` | kubectl-driven chaos experiments with measured recovery; results in `chaos/results/`. |
+| `docs/runbooks/`, `docs/RELIABILITY.md` | one runbook per alert; SLOs, error-budget policy, alert catalog. |
 | `policy/` | OPA/Conftest rules (`terraform/`, `kubernetes/`), `data/limits.yaml`, `prices.yaml`. The agent and CI enforce these. |
 | `cli/src/aiplatform/agent/` | `propose` implementation: providers, context, guardrails, cost, report, PR. |
 | `policy/` | OPA / Conftest policies (V7). |
@@ -114,3 +116,7 @@ See `TODO.md` for the backlog and `PROJECT_STATUS.md` for where we are.
   guardrail needs (policies, chart changes) must be committed first.
 - Never let the agent bypass a guardrail; add a policy exception in `policy/`
   with a comment instead.
+- SLIs are ingress-based; ingress series carry `exported_namespace`/`ingress`,
+  mapped to `environment`/`workload` with label_replace in the rules.
+- Every new alert needs a runbook in `docs/runbooks/` and a row in
+  `docs/RELIABILITY.md`.
