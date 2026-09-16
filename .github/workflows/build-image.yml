@@ -125,11 +125,25 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}:${{ needs.publish.outputs.sha_tag }}
+          scanners: vuln
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
+          format: table
+      - name: Trivy SARIF for code scanning
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ needs.publish.outputs.sha_tag }}
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
           format: sarif
           output: trivy.sarif
+          skip-setup-trivy: true
+        env:
+          TRIVY_SKIP_DB_UPDATE: "true"
       - name: Upload SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
