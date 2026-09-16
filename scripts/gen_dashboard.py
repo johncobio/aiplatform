@@ -54,7 +54,7 @@ def row(title, y):
 
 rate = f"sum(rate(llm_requests_total{SEL}[$__rate_interval]))"
 q = lambda p: f"histogram_quantile({p}, sum(rate(llm_request_duration_seconds_bucket{SEL}[$__rate_interval])) by (le))"
-err = f'sum(rate(llm_requests_total{{environment="$environment",workload="$workload",status="error"}}[5m])) / clamp_min(sum(rate(llm_requests_total{SEL}[5m])), 1e-9)'
+err = f'(sum(rate(llm_requests_total{{environment="$environment",workload="$workload",status="error"}}[5m])) or vector(0)) / clamp_min(sum(rate(llm_requests_total{SEL}[5m])), 1e-9)'
 ready = f'kube_deployment_status_replicas_ready{{{NS},deployment="$workload"}}'
 desired = f'kube_deployment_spec_replicas{{{NS},deployment="$workload"}}'
 hpa = f'kube_horizontalpodautoscaler_status_desired_replicas{{{NS},horizontalpodautoscaler="$workload"}}'

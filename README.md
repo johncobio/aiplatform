@@ -41,7 +41,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V3 complete locally; AWS deliberately deferred.** Working today:
+**V4 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -53,6 +53,10 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   images published to GHCR; Argo CD on the kind cluster reconciling
   `deploy/workloads/<env>/*.values.yaml`; `aiplatform deploy --target gitops`
   commits desired state and waits for the sync.
+- **Observability**: Prometheus + Grafana (LLM Inference dashboard: request
+  rate, P50/P95/P99, tokens/s, queue depth, error rate, replicas, CPU/memory,
+  model load time, cost estimates), OpenTelemetry traces with GenAI span
+  attributes into Jaeger, all installed by `cluster up`.
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -98,6 +102,25 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 Convention: `dev` is for direct deploys from a laptop (`--target kind`);
 `staging` is owned by Argo CD (`--target gitops`).
 
+### Observability UIs (after `make cluster-up`)
+
+| UI | URL |
+|----|-----|
+| Grafana | http://grafana.127.0.0.1.nip.io (anonymous viewer; `admin` / `prom-operator` to edit) |
+| Prometheus | http://prometheus.127.0.0.1.nip.io |
+| Jaeger | http://jaeger.127.0.0.1.nip.io |
+| Argo CD | http://argocd.127.0.0.1.nip.io |
+
+On an 8 GB laptop Argo CD and the observability stack do not both fit next to
+an LLM workload. Pause whichever you are not using; configuration and desired
+state are kept, only the pods stop:
+
+```
+uv run --project cli aiplatform cluster addon pause argocd          # doing dashboards / load tests
+uv run --project cli aiplatform cluster addon resume argocd         # doing GitOps deploys
+uv run --project cli aiplatform cluster addon pause observability
+```
+
 The first deploy downloads the model (~400 MB) into `~/.aiplatform/models`,
 which is mounted into the container, so later deploys start in seconds.
 
@@ -133,7 +156,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 | V1 | Local end-to-end with Docker, Terraform modules written (done) |
 | V2 | Kubernetes on kind, Helm chart, environments (done) |
 | V3 | GitHub Actions CI, GHCR publishing, Argo CD GitOps (done) |
-| V4 | Prometheus, Grafana, OpenTelemetry dashboards |
+| V4 | Prometheus, Grafana, OpenTelemetry traces, Jaeger, inference dashboard (done) |
 | V5 | Load testing, autoscaling on inference metrics, benchmarks |
 | V6 | vLLM on GPU nodes |
 | V7 | AI-proposed infrastructure changes with validation, policy, cost and human approval gates |

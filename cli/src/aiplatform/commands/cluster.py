@@ -1,7 +1,10 @@
 """`aiplatform cluster up|down|status`: the local kind platform cluster."""
 
+from typing import Annotated
+
 import typer
 
+from aiplatform import addons as addons_mod
 from aiplatform import cluster as cluster_mod
 from aiplatform import shell
 from aiplatform.commands.common import console, exit_for, fail, run_pipeline
@@ -55,3 +58,33 @@ def status() -> None:
             console.print(f"  {name:<11} {url}")
     except AiPlatformError as e:
         fail(e)
+
+
+addon_app = typer.Typer(
+    help="Pause or resume platform add-ons (argocd, observability).", no_args_is_help=True
+)
+app.add_typer(addon_app, name="addon")
+
+AddonArg = Annotated[str, typer.Argument(help="Add-on name: " + ", ".join(addons_mod.ADDONS))]
+
+
+@addon_app.command()
+def pause(addon: AddonArg) -> None:
+    """Scale an add-on's pods to zero, keeping its configuration (frees memory on a laptop)."""
+    try:
+        steps = [addons_mod.ScaleAddon(shell.run, addon, resume=False)]
+    except AiPlatformError as e:
+        fail(e)
+        return
+    exit_for(run_pipeline(steps, {}))
+
+
+@addon_app.command()
+def resume(addon: AddonArg) -> None:
+    """Scale a paused add-on back to its original replica counts."""
+    try:
+        steps = [addons_mod.ScaleAddon(shell.run, addon, resume=True)]
+    except AiPlatformError as e:
+        fail(e)
+        return
+    exit_for(run_pipeline(steps, {}))

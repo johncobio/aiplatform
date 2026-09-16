@@ -41,9 +41,12 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 
 ## V4 — Observability
 
-- [ ] kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
-- [ ] OpenTelemetry Collector + traces from the service
-- [ ] Grafana dashboards: request rate, P50/P95/P99, tokens/sec, queue depth, replicas, CPU/mem, cost estimate
+- [x] kube-prometheus-stack (Prometheus, Grafana; Alertmanager deferred to V8)
+- [x] OpenTelemetry Collector + OTLP traces from the service with gen_ai.* attributes; Jaeger backend
+- [x] ServiceMonitor in the chart with environment/workload/model labels
+- [x] Grafana dashboard: request rate, P50/P95/P99, tokens/sec, queue depth, error rate, replicas, CPU/mem, model load, cost estimate
+- [ ] Recording rules for the dashboard queries (needed before alerting in V8)
+- [ ] Log aggregation (Loki or OTel logs pipeline) — currently `kubectl logs` only
 
 ## V5 — Load testing and autoscaling
 

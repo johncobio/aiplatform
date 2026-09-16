@@ -276,7 +276,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\",status=\"error\"}[5m])) / clamp_min(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\",status=\"error\"}[5m])) or vector(0)) / clamp_min(sum(rate(llm_requests_total{environment=\"$environment\",workload=\"$workload\"}[5m])), 1e-9)",
           "legendFormat": "Error rate",
           "refId": "A",
           "range": true

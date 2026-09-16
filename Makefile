@@ -6,7 +6,7 @@ CLI      := cli
 SERVICE  := services/llm-service
 TF_DIRS  := $(shell find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
 
-.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops
+.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -64,6 +64,10 @@ run-gitops: ## Deploy the sample service to staging through Git + Argo CD
 
 destroy-gitops: ## Remove the staging workload from Git (Argo CD prunes it)
 	cd $(CLI) && uv run aiplatform destroy --dir ../$(SERVICE) --target gitops --env staging
+
+dashboard: ## Regenerate the Grafana dashboard JSON and validate its queries against Prometheus
+	python3 scripts/gen_dashboard.py deploy/observability/dashboards/llm-inference.json
+	python3 scripts/check_dashboard.py deploy/observability/dashboards/llm-inference.json http://prometheus.127.0.0.1.nip.io environment=staging workload=llm-service
 
 run-local: ## Deploy the sample service locally with the CLI
 	cd $(CLI) && uv run aiplatform deploy --dir ../$(SERVICE) --target local
