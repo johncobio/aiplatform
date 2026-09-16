@@ -3,7 +3,7 @@ nameOverride: llm-service
 environment: staging
 image:
   repository: ghcr.io/johncobio/aiplatform/llm-service
-  tag: sha-cb79a99
+  tag: sha-1d59a99
 port: 8000
 model:
   backend: llamacpp
@@ -16,10 +16,10 @@ env:
 resources:
   requests:
     cpu: '1'
-    memory: 2.0Gi
+    memory: 1.0Gi
   limits:
     cpu: '2'
-    memory: 2.0Gi
+    memory: 1.0Gi
 replicaCount: 1
 autoscaling:
   enabled: true
