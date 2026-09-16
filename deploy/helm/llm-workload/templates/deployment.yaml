@@ -52,6 +52,9 @@ spec:
               if [ -s "/models/{{ $modelFile }}" ]; then echo "model cached"; exit 0; fi
               curl -fsSL --retry 5 -o "/models/{{ $modelFile }}.part" "{{ .Values.model.url }}"
               mv "/models/{{ $modelFile }}.part" "/models/{{ $modelFile }}"
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }
           volumeMounts:
             - name: models
               mountPath: /models

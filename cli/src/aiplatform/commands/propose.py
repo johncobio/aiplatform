@@ -66,9 +66,8 @@ def propose(
 
     if not result.succeeded:
         err_console.print("[red]guardrails failed; no pull request opened[/red]")
-        guardrails.worktree_cleanup(shell_run, repo, ctx["worktree"]) if ctx.get(
-            "worktree"
-        ) else None
+        if ctx.get("worktree"):
+            guardrails.worktree_cleanup(shell_run, repo, ctx["worktree"], ctx.get("branch"))
         raise typer.Exit(code=3)
     if dry_run:
         console.print("[yellow]dry run: guardrails passed, no pull request opened[/yellow]")
