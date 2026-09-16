@@ -4,8 +4,8 @@ _Last updated: 2026-09-16_
 
 ## Current phase
 
-**V2 complete (Kubernetes on kind + Helm).** Next: V3 CI/CD (GitHub Actions,
-Argo CD on kind). AWS is deliberately last (ADR 0005).
+**V3 complete (CI/CD + GitOps).** Next: V4 observability (Prometheus,
+Grafana, OpenTelemetry on kind). AWS is deliberately last (ADR 0005).
 
 ## Completed
 
@@ -32,14 +32,42 @@ Argo CD on kind). AWS is deliberately last (ADR 0005).
 - 71 CLI tests + 11 service tests, ruff clean, `make check` green.
 - Baseline: `docs/benchmarks/2026-09-16-v2-kind-baseline.md`.
 
+### V3 — CI/CD and GitOps
+- GitHub Actions `ci.yml`: ruff + pytest (both projects), terraform
+  fmt/validate for every root and module, Checkov (documented skips in
+  `.checkov.yaml`), helm lint --strict, hadolint, actionlint. Green in ~1.5 min.
+- `build-image.yml`: native amd64 + arm64 builds with GHA cache, push by
+  digest, multi-arch manifest `ghcr.io/johncobio/aiplatform/llm-service:sha-<short>`,
+  Trivy scan (CRITICAL, fixable) with SARIF upload.
+- Argo CD 3.5.3 (chart 10.9.1) installed by `cluster up`; AppProject +
+  ApplicationSet turn `deploy/workloads/<env>/*.values.yaml` into
+  Applications with automated sync, prune and self-heal.
+- `gitops` target: verify CI image → write desired state → commit/push →
+  refresh Argo CD → wait Synced/Healthy at the pushed revision → probe.
+  Rollback rewrites the previous tag; destroy deletes the file.
+- `--env` and `--image-tag` overrides; `deploy/platform.yaml`.
+- 86 CLI tests + 11 service tests; `make check` green; ADR 0006.
+- Baseline: `docs/benchmarks/2026-09-16-v3-gitops-baseline.md`.
+
 ## Current architecture
 
-See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker or
-`kind` Helm) → `llm-service` pod/container serving a GGUF model with
-Prometheus metrics, reachable through ingress-nginx at
-`http://<name>.<env>.127.0.0.1.nip.io`.
+See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker, `kind`
+Helm, or `gitops` commit + Argo CD) → `llm-service` container serving a GGUF
+model with Prometheus metrics, reachable through ingress-nginx at
+`http://<name>.<env>.127.0.0.1.nip.io`. CI builds multi-arch images to GHCR on
+service changes; Argo CD reconciles `deploy/workloads/`. Convention: `dev` =
+direct kind deploys, `staging` = GitOps.
 
 ## Known issues
+
+- **Laptop capacity.** Docker Desktop must stay at 4 GB (5 GB pushed macOS
+  into ~9 GB of swap and crash-looped the kind control plane). The node has
+  ~3.9 GiB allocatable; Argo CD + add-ons take ~1 GiB, so one LLM workload at
+  a time, and its memory request must leave room for a rolling-update surge
+  (request == limit by design → 2× memory during rollout).
+- Image build cache is keyed on `pyproject.toml`; a version bump recompiles
+  llama.cpp (~5 min). Split runtime deps from project metadata to fix.
+- Third-party GitHub Actions are pinned to tags, not commit SHAs.
 
 - **CPU HPA scales on model-load spikes** (observed: 856m vs 1-core request
   during startup → unnecessary second replica). V5 moves autoscaling to
@@ -65,9 +93,10 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **V3 CI/CD:** GitHub Actions (ruff, pytest, terraform fmt/validate,
-   helm lint, checkov, docker build with cache); Argo CD on kind with an
-   Application per environment; `aiplatform deploy` submitting via Git.
-2. **V4 observability:** kube-prometheus-stack + OpenTelemetry on kind;
-   inference dashboards from the existing `llm_*` metrics.
-3. **V5:** k6 load tests; HPA on queue depth via Prometheus Adapter or KEDA.
+1. **V4 observability:** kube-prometheus-stack (sized for the laptop) +
+   OpenTelemetry Collector on kind; ServiceMonitor from the chart; Grafana
+   dashboards for request rate, P50/P95/P99, tokens/s, queue depth, replicas,
+   CPU/memory. Memory budget is the constraint: measure before and after.
+2. **V5:** k6 load tests; HPA on queue depth via Prometheus Adapter or KEDA;
+   benchmark results recorded.
+3. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.

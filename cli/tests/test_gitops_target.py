@@ -39,7 +39,9 @@ def gitops_runner(runner):
         "applicationset.argoproj.io/aiplatform-workloads"
     )
     runner.responses["git rev-parse --abbrev-ref HEAD"] = "main\n"
-    runner.responses["git log -1 --format=%h --abbrev=7 -- ."] = "abc1234\n"
+    runner.responses["git log -1 --format=%h --abbrev=7 -- . :(exclude)./aiplatform.yaml"] = (
+        "abc1234\n"
+    )
     runner.responses["git rev-parse HEAD"] = "deadbeefcafe\n"
     runner.responses["kubectl --context kind-aiplatform -n aiplatform-dev get deployment"] = ""
     runner.failures["helm --kube-context kind-aiplatform -n aiplatform-dev status"] = (
@@ -101,7 +103,7 @@ def test_default_tag_comes_from_last_commit_touching_context(config, repo, gitop
     ctx = make_ctx(config, repo)
     assert Pipeline().run(make_target(gitops_runner, repo).deploy_steps(ctx), ctx).succeeded
     log_call = [c for c in gitops_runner.calls if c[:2] == ["git", "log"]][0]
-    assert log_call[-2:] == ["--", "."]
+    assert log_call[-3:] == ["--", ".", ":(exclude)./aiplatform.yaml"]
 
 
 def test_deploy_respects_explicit_image_tag(config, repo, gitops_runner):

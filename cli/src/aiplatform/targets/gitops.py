@@ -55,7 +55,9 @@ def last_build_sha(run: shell.Runner, repo: Path, context_dir: Path) -> str:
         rel = str(context_dir.resolve().relative_to(repo.resolve()))
     except ValueError:
         rel = "."
-    proc = run(["git", "log", "-1", "--format=%h", "--abbrev=7", "--", rel], cwd=str(repo))
+    # aiplatform.yaml is deployment config, not image content; CI ignores it too.
+    pathspec = [rel, f":(exclude){rel}/aiplatform.yaml"]
+    proc = run(["git", "log", "-1", "--format=%h", "--abbrev=7", "--", *pathspec], cwd=str(repo))
     sha = proc.stdout.strip()
     if not sha:
         raise StepError(f"no commits touch {rel!r}; commit the service before deploying")

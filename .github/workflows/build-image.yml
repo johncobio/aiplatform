@@ -9,10 +9,12 @@ on:
     branches: [main]
     paths:
       - services/llm-service/**
+      - "!services/llm-service/aiplatform.yaml"   # deployment config, not part of the image
       - .github/workflows/build-image.yml
   pull_request:
     paths:
       - services/llm-service/**
+      - "!services/llm-service/aiplatform.yaml"
       - .github/workflows/build-image.yml
   workflow_dispatch:
 
@@ -78,8 +80,11 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     outputs:
-      tag: ${{ steps.meta.outputs.version }}
+      sha_tag: ${{ steps.short.outputs.tag }}
     steps:
+      - name: Short SHA tag
+        id: short
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
@@ -107,7 +112,7 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf "${IMAGE}@sha256:%s " *)
       - name: Inspect
-        run: docker buildx imagetools inspect "${IMAGE}:${{ steps.meta.outputs.version }}"
+        run: docker buildx imagetools inspect "${IMAGE}:${{ steps.short.outputs.tag }}"
 
   scan:
     name: Scan published image
@@ -115,10 +120,11 @@ jobs:
     needs: publish
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4   # upload-sarif needs the repository
       - name: Trivy (fail on CRITICAL with a fix available)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.IMAGE }}:${{ needs.publish.outputs.tag }}
+          image-ref: ${{ env.IMAGE }}:${{ needs.publish.outputs.sha_tag }}
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"

@@ -2,7 +2,7 @@
 name: llm-service
 model: qwen2.5-0.5b-instruct
 cpu: 2
-memory: 2Gi
+memory: 1Gi   # model needs ~650 MiB; request == limit, so rollouts need 2x this on one node
 environment: dev
 port: 8000
 context: .
