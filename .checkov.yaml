@@ -1,0 +1,22 @@
+# Checkov policy for infra/terraform. Every skip has a reason; revisit in the
+# reliability phase (V8) and before any production use.
+directory:
+  - infra/terraform
+framework:
+  - terraform
+quiet: true
+compact: true
+download-external-modules: false
+skip-check:
+  # Public-subnet-only design without NAT gateway (ADR 0003): instances need public IPs.
+  - CKV_AWS_130   # subnets assign public IP by default
+  - CKV_AWS_88    # EC2 instance has public IP
+  # Cost: each of these adds a recurring charge with no benefit for a single-developer sandbox.
+  - CKV2_AWS_11   # VPC flow logs (CloudWatch ingestion cost)
+  - CKV_AWS_126   # EC2 detailed monitoring ($2.10/instance/month)
+  - CKV_AWS_145   # S3 KMS encryption ($1/key/month; AES256 SSE is used)
+  - CKV_AWS_136   # ECR KMS encryption (same)
+  - CKV_AWS_144   # S3 cross-region replication
+  - CKV_AWS_18    # S3 access logging (needs a second bucket)
+  # Not applicable to a Terraform state bucket.
+  - CKV2_AWS_62   # S3 event notifications

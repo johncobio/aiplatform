@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: "1.16.2"
+
+jobs:
+  python:
+    name: Python (${{ matrix.project }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [cli, services/llm-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "${{ matrix.project }}/uv.lock"
+      - name: Install
+        working-directory: ${{ matrix.project }}
+        run: uv sync --extra dev --frozen
+      - name: Lint
+        working-directory: ${{ matrix.project }}
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Test
+        working-directory: ${{ matrix.project }}
+        run: uv run pytest
+
+  terraform:
+    name: Terraform validate + Checkov
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - name: fmt + validate every root and module
+        run: make tf-validate
+      - uses: astral-sh/setup-uv@v6
+      - name: Checkov
+        run: uvx checkov --config-file .checkov.yaml
+
+  helm:
+    name: Helm lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: make helm-lint
+
+  dockerfile:
+    name: Dockerfile lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: services/llm-service/Dockerfile
+
+  workflows:
+    name: Workflow lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: raven-actions/actionlint@v2

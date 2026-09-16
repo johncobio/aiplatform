@@ -110,6 +110,7 @@ resource "aws_instance" "this" {
   vpc_security_group_ids      = [aws_security_group.this.id]
   iam_instance_profile        = aws_iam_instance_profile.this.name
   associate_public_ip_address = true
+  ebs_optimized               = true
   user_data                   = local.user_data
   user_data_replace_on_change = true # a new image tag re-creates the instance (immutable infra)
 

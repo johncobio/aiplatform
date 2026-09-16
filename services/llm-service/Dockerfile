@@ -45,12 +45,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     LLM_MODEL_DIR=/models \
     PORT=8000
 
-USER app
+USER 10001
 WORKDIR /home/app
 EXPOSE 8000
 VOLUME ["/models"]
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/healthz', timeout=2).status==200 else 1)"
+    CMD ["python", "-c", "import os,sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:%s/healthz' % os.environ['PORT'], timeout=2).status == 200 else 1)"]
 
 CMD ["python", "-m", "llm_service"]
