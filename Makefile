@@ -6,7 +6,7 @@ CLI      := cli
 SERVICE  := services/llm-service
 TF_DIRS  := $(shell find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
 
-.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind
+.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -58,6 +58,12 @@ run-kind: ## Deploy the sample service to the kind cluster via Helm
 
 destroy-kind: ## Uninstall the sample service from the kind cluster
 	cd $(CLI) && uv run aiplatform destroy --dir ../$(SERVICE) --target kind
+
+run-gitops: ## Deploy the sample service to staging through Git + Argo CD
+	cd $(CLI) && uv run aiplatform deploy --dir ../$(SERVICE) --target gitops --env staging
+
+destroy-gitops: ## Remove the staging workload from Git (Argo CD prunes it)
+	cd $(CLI) && uv run aiplatform destroy --dir ../$(SERVICE) --target gitops --env staging
 
 run-local: ## Deploy the sample service locally with the CLI
 	cd $(CLI) && uv run aiplatform deploy --dir ../$(SERVICE) --target local

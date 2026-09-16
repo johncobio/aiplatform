@@ -23,23 +23,53 @@ DirOption = Annotated[
     typer.Option("--dir", "-C", help="Directory containing aiplatform.yaml", show_default="cwd"),
 ]
 TargetOption = Annotated[str, typer.Option("--target", "-t", help="Deployment target")]
+EnvOption = Annotated[
+    str | None,
+    typer.Option("--env", "-e", help="Override `environment` from aiplatform.yaml"),
+]
+ImageTagOption = Annotated[
+    str | None,
+    typer.Option(
+        "--image-tag", help="Deploy an existing image tag instead of the default (gitops)"
+    ),
+]
 TimeoutOption = Annotated[
     int,
     typer.Option("--timeout", help="Seconds to wait for readiness (first run downloads the model)"),
 ]
 
 
-def build_context(directory: Path | None, timeout: int = 600) -> Context:
+def build_context(
+    directory: Path | None,
+    timeout: int = 600,
+    environment: str | None = None,
+    image_tag: str | None = None,
+) -> Context:
     workload_dir = (directory or Path.cwd()).resolve()
     path = find_config(workload_dir)
     config = load_config(path)
+    if environment and environment != config.environment:
+        config = load_config_override(config, environment)
     return {
+        "image_tag": image_tag,
         "config": config,
         "config_path": path,
         "workload_dir": workload_dir,
         "state": StateStore(workload_dir / ".aiplatform"),
         "timeout": timeout,
     }
+
+
+def load_config_override(config, environment: str):
+    from pydantic import ValidationError
+
+    from aiplatform.config.schema import WorkloadConfig
+    from aiplatform.errors import ConfigError
+
+    try:
+        return WorkloadConfig.model_validate({**config.model_dump(), "environment": environment})
+    except ValidationError as e:
+        raise ConfigError(f"--env {environment!r}: {e.errors()[0]['msg']}") from None
 
 
 def resolve_target(name: str) -> Target:

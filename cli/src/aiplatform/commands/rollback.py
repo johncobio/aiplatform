@@ -2,6 +2,8 @@
 
 from aiplatform.commands.common import (
     DirOption,
+    EnvOption,
+    ImageTagOption,
     TargetOption,
     TimeoutOption,
     build_context,
@@ -18,10 +20,12 @@ def rollback(
     directory: DirOption = None,
     target: TargetOption = "local",
     timeout: TimeoutOption = 600,
+    env: EnvOption = None,
+    image_tag: ImageTagOption = None,
 ) -> None:
     """Roll back to the previous release recorded for this workload."""
     try:
-        ctx = build_context(directory, timeout=timeout)
+        ctx = build_context(directory, timeout=timeout, environment=env, image_tag=image_tag)
         steps = resolve_target(target).rollback_steps(ctx)
     except AiPlatformError as e:
         fail(e)

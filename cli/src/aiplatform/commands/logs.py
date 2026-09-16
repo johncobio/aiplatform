@@ -4,7 +4,14 @@ from typing import Annotated
 
 import typer
 
-from aiplatform.commands.common import DirOption, TargetOption, build_context, fail, resolve_target
+from aiplatform.commands.common import (
+    DirOption,
+    EnvOption,
+    TargetOption,
+    build_context,
+    fail,
+    resolve_target,
+)
 from aiplatform.errors import AiPlatformError
 
 
@@ -13,10 +20,11 @@ def logs(
     target: TargetOption = "local",
     follow: Annotated[bool, typer.Option("--follow", "-f", help="Stream new log lines")] = False,
     tail: Annotated[int, typer.Option(help="Number of recent lines to show")] = 100,
+    env: EnvOption = None,
 ) -> None:
     """Show logs for the deployed workload."""
     try:
-        ctx = build_context(directory)
+        ctx = build_context(directory, environment=env)
         resolve_target(target).logs(ctx, follow=follow, tail=tail)
     except AiPlatformError as e:
         fail(e)

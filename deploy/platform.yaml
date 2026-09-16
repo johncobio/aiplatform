@@ -1,0 +1,11 @@
+# Platform-wide settings read by the aiplatform CLI (as opposed to the
+# per-workload aiplatform.yaml). No secrets here.
+registry: ghcr.io/johncobio/aiplatform
+gitops:
+  repo: https://github.com/johncobio/aiplatform.git
+  branch: main
+  workloads_dir: deploy/workloads
+argocd:
+  namespace: argocd
+  applicationset: aiplatform-workloads
+  host: argocd.127.0.0.1.nip.io

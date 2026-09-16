@@ -25,7 +25,11 @@ control on AWS is a hard requirement, not a preference.
 | `infra/terraform/bootstrap/` | One-time remote state bucket. |
 | `deploy/helm/llm-workload/` | Helm chart: the deployment contract for every target (kind now, EKS later). |
 | `deploy/environments/<env>/values.yaml` | Per-environment chart overrides. |
-| `deploy/kind/` | kind cluster config and add-on values (ingress-nginx, metrics-server). |
+| `deploy/kind/` | kind cluster config and add-on values (ingress-nginx, metrics-server, argo-cd). |
+| `deploy/argocd/` | AppProject and ApplicationSet (desired state → Applications). |
+| `deploy/workloads/<env>/` | Desired state: one values file per deployed workload (written by `deploy --target gitops`). |
+| `deploy/platform.yaml` | Platform settings: registry, GitOps repo/branch, Argo CD names. |
+| `.github/workflows/` | `ci.yml` (checks) and `build-image.yml` (multi-arch GHCR publish + Trivy). |
 | `policy/` | OPA / Conftest policies (V7). |
 | `docs/ARCHITECTURE.md` | Current architecture and diagram. Update when architecture changes. |
 | `docs/adr/` | Architecture Decision Records, numbered `NNNN-title.md`. |
@@ -65,9 +69,10 @@ make test         # tests only
 make run-local    # aiplatform deploy --target local for the sample service
 make cluster-up   # kind cluster + ingress-nginx + metrics-server
 make run-kind     # aiplatform deploy --target kind (Helm)
+make run-gitops   # aiplatform deploy --target gitops --env staging (Argo CD)
 ```
 
-Deployment targets: `local` (Docker) and `kind` (Helm on kind). Add new
+Deployment targets: `local` (Docker), `kind` (Helm on kind, use for `dev`) and `gitops` (commit + Argo CD, use for `staging`). Add new
 targets under `cli/src/aiplatform/targets/` by composing the shared steps in
 `cli/src/aiplatform/steps/`; never duplicate build/health/record logic.
 
@@ -78,3 +83,12 @@ V5 load testing + autoscaling → V6 vLLM → V7 AI infra agent with guardrails 
 AWS (Terraform: VPC, ECR, EKS) is deliberately last; the AWS modules are written and validated but
 not applied until the owner says so (see ADR 0005).
 See `TODO.md` for the backlog and `PROJECT_STATUS.md` for where we are.
+
+## Hard-won facts
+
+- Docker Desktop must stay at 4 GB on this laptop; 5 GB made macOS swap and
+  the kind control plane crash-looped. Run one LLM workload at a time on kind.
+- Multi-source Argo CD Applications report `status.sync.revisions` (list),
+  not `revision`.
+- CI only builds images when `services/llm-service/**` changes; the gitops
+  target therefore tags from the last commit touching the service, not HEAD.

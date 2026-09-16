@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: aiplatform
+  namespace: argocd
+spec:
+  description: aiplatform LLM workloads
+  sourceRepos:
+    - https://github.com/johncobio/aiplatform.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "aiplatform-*"
+  # Workload Applications create their own namespace and nothing else cluster-scoped.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: rbac.authorization.k8s.io
+      kind: Role

@@ -2,6 +2,7 @@
 
 from aiplatform.commands.common import (
     DirOption,
+    EnvOption,
     TargetOption,
     build_context,
     exit_for,
@@ -12,10 +13,12 @@ from aiplatform.commands.common import (
 from aiplatform.errors import AiPlatformError
 
 
-def destroy(directory: DirOption = None, target: TargetOption = "local") -> None:
+def destroy(
+    directory: DirOption = None, target: TargetOption = "local", env: EnvOption = None
+) -> None:
     """Tear down the workload on the target (keeps release history)."""
     try:
-        ctx = build_context(directory)
+        ctx = build_context(directory, environment=env)
         steps = resolve_target(target).destroy_steps(ctx)
     except AiPlatformError as e:
         fail(e)

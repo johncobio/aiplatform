@@ -31,10 +31,13 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 
 ## V3 — CI/CD
 
-- [ ] GitHub Actions: lint, test, terraform fmt/validate, checkov, docker build
-- [ ] OIDC federation GitHub → AWS (no static keys)
-- [ ] Image publish to ECR on main
-- [ ] Argo CD install + Application per environment; CLI `deploy` submits via Git
+- [x] GitHub Actions: ruff, pytest, terraform fmt/validate, checkov, helm lint, hadolint, actionlint
+- [x] Multi-arch image publish to GHCR on main (native amd64 + arm64 runners, GHA cache, Trivy scan)
+- [x] Argo CD on kind (pinned chart), AppProject + ApplicationSet over `deploy/workloads/<env>/*.values.yaml`
+- [x] `gitops` target: verify image → write desired state → commit/push → wait for Synced/Healthy → probe
+- [ ] Pin third-party GitHub Actions to commit SHAs (supply-chain hardening)
+- [ ] PR-based flow (`deploy --pr`) as the base for V7 human approval
+- [ ] OIDC federation GitHub → AWS and ECR publishing — moved to the AWS section
 
 ## V4 — Observability
 

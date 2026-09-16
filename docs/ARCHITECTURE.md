@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V2 (local Docker target and Kubernetes-on-kind target implemented; AWS Terraform written, not applied)._
+_Status: V3 (Docker, kind and GitOps targets; GitHub Actions CI; Argo CD on kind; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -27,9 +27,15 @@ flowchart LR
         h[health check]
     end
 
+    subgraph CI["GitHub Actions"]
+        ci[lint · test · terraform validate\ncheckov · helm lint · hadolint]
+        img[multi-arch image → GHCR\nsha-&lt;commit&gt; · Trivy scan]
+    end
+
     subgraph Targets
         local[local: Docker]
-        kind[kind: Helm on kind\ningress-nginx + metrics-server]
+        kind[kind: Helm on kind]
+        gitops[gitops: commit values file\n→ Argo CD ApplicationSet]
         eks[eks: Helm on EKS (later)]
     end
 
@@ -44,9 +50,12 @@ flowchart LR
     cfg --> cli --> v1 --> v2 --> b --> d --> h
     d --> local
     d --> kind
+    d --> gitops
+    img -.pulled by.-> gitops
     d --> eks
     local --> Workload
     kind --> Workload
+    gitops --> Workload
     eks --> Workload
 ```
 
@@ -70,12 +79,19 @@ flowchart LR
   - `kind`: builds the image, `kind load`s it, runs `helm upgrade --install`
     with generated values, waits for rollout, probes the ingress. Rollback is
     `helm rollback` to the previous revision.
-  - `eks` (later): same chart; pushes to ECR instead of `kind load`.
+  - `gitops`: checks the CI-built image exists, writes
+    `deploy/workloads/<env>/<name>.values.yaml`, commits and pushes, nudges
+    Argo CD, waits for Synced/Healthy at that revision, probes the ingress.
+    Rollback rewrites the previous tag; destroy deletes the file (ADR 0006).
+  - `eks` (later): same chart; images from ECR.
 - **Cluster** (`aiplatform.cluster`, `aiplatform cluster up|down|status`):
   creates the single-node kind cluster from `deploy/kind/cluster.yaml` and
-  installs pinned add-ons: ingress-nginx (host ports 80/443) and
-  metrics-server (HPA). Workloads are reachable at
-  `http://<name>.<env>.127.0.0.1.nip.io`.
+  installs pinned add-ons: ingress-nginx (host ports 80/443), metrics-server
+  (HPA) and Argo CD (UI at `http://argocd.127.0.0.1.nip.io`), then applies
+  the GitOps AppProject and ApplicationSet from `deploy/argocd/`. Workloads
+  are reachable at `http://<name>.<env>.127.0.0.1.nip.io`.
+- **Platform config** (`deploy/platform.yaml`): registry prefix, GitOps repo
+  and branch, Argo CD names. Workload config stays in `aiplatform.yaml`.
 - **State**: per-workload deployment history in `.aiplatform/<env>/<name>.json`
   (image tags, timestamps) so `rollback` can re-deploy the previous release.
 
@@ -111,6 +127,21 @@ limit, memory request equals the limit. Environment overrides live in
 `deploy/environments/<env>/values.yaml`; one namespace per environment
 (`aiplatform-<env>`).
 
+### CI/CD (`.github/workflows/`, `deploy/argocd/`)
+
+- `ci.yml` on every push and PR: ruff + pytest for both Python projects,
+  `terraform fmt`/`validate` for every root and module, Checkov (skips
+  documented in `.checkov.yaml`), `helm lint --strict`, hadolint, actionlint.
+- `build-image.yml` when the service changes: native amd64 and arm64 builds
+  with the GitHub Actions cache, pushed by digest and merged into one
+  multi-arch manifest `ghcr.io/johncobio/aiplatform/llm-service:sha-<short>`,
+  then a Trivy scan (fails on fixable CRITICAL, SARIF uploaded).
+- Argo CD: `AppProject aiplatform` restricts sources and destinations;
+  `ApplicationSet aiplatform-workloads` maps
+  `deploy/workloads/<env>/<name>.values.yaml` → Application
+  `<env>-<name>` in namespace `aiplatform-<env>` with automated sync, prune
+  and self-heal.
+
 ### Infrastructure (`infra/terraform/`)
 
 - `modules/network`: VPC, two public subnets across AZs, IGW, route table.
@@ -144,6 +175,17 @@ limit, memory request equals the limit. Environment overrides live in
 4. `kubectl rollout status`, then probe `/healthz` and `/readyz` through the
    ingress host.
 5. Record the release; print the endpoint.
+
+## Data flow: `aiplatform deploy --target gitops --env staging`
+
+1. Validate config; check Argo CD's ApplicationSet exists and the working
+   branch is the GitOps branch; refuse if a direct Helm release exists.
+2. Resolve the image tag: `sha-` + short SHA of the last commit touching the
+   service directory (what CI built); verify it with `docker manifest inspect`.
+3. Write the values file, `git commit` + `git push`.
+4. Annotate the ApplicationSet and Application to refresh; poll until
+   `Synced` and `Healthy` at the pushed revision.
+5. Probe the ingress; record the release.
 
 ## Cross-cutting
 

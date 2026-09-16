@@ -1,0 +1,31 @@
+# Argo CD on kind: single-user, no TLS, small footprint. Not a production profile.
+global:
+  domain: argocd.127.0.0.1.nip.io
+configs:
+  params:
+    server.insecure: true
+  cm:
+    timeout.reconciliation: 60s   # poll Git every minute (default 3m)
+dex:
+  enabled: false
+notifications:
+  enabled: false
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    tls: false
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+controller:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+repoServer:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+applicationSet:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+redis:
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }

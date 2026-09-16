@@ -40,3 +40,13 @@ def test_unknown_target_is_rejected(tmp_path: Path):
     r = cli.invoke(app, ["deploy", "--dir", str(tmp_path), "--target", "mars"])
     assert r.exit_code != 0
     assert "mars" in r.output
+
+
+def test_env_override_changes_environment(tmp_path: Path):
+    cli.invoke(app, ["init", "--dir", str(tmp_path)])
+    r = cli.invoke(app, ["deploy", "--dir", str(tmp_path), "--target", "mars", "--env", "staging"])
+    assert "mars" in r.output  # got past config loading with the override
+
+    r = cli.invoke(app, ["deploy", "--dir", str(tmp_path), "--target", "local", "--env", "prod"])
+    assert r.exit_code == 2
+    assert "prod" in r.output

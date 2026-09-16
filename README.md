@@ -41,7 +41,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V2 complete locally; AWS deliberately deferred.** Working today:
+**V3 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -49,6 +49,10 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   metrics-server installed by the platform).
 - `deploy/helm/llm-workload`: the Helm chart every Kubernetes target uses
   (hardened Deployment, Service, Ingress, HPA, PDB, model-cache PVC).
+- **CI/CD**: GitHub Actions lint/test/validate/scan on every push; multi-arch
+  images published to GHCR; Argo CD on the kind cluster reconciling
+  `deploy/workloads/<env>/*.values.yaml`; `aiplatform deploy --target gitops`
+  commits desired state and waits for the sync.
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -80,6 +84,19 @@ kubectl --context kind-aiplatform -n aiplatform-dev get deploy,hpa,ingress
 make destroy-kind          # helm uninstall (model cache PVC is kept)
 make cluster-down          # delete the cluster
 ```
+
+### GitOps (Argo CD) quick start
+
+```
+make cluster-up                                   # also installs Argo CD + ApplicationSet
+git push                                          # CI builds ghcr.io/.../llm-service:sha-<commit>
+make run-gitops                                   # aiplatform deploy --target gitops --env staging
+open http://argocd.127.0.0.1.nip.io               # user admin; password:
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+```
+
+Convention: `dev` is for direct deploys from a laptop (`--target kind`);
+`staging` is owned by Argo CD (`--target gitops`).
 
 The first deploy downloads the model (~400 MB) into `~/.aiplatform/models`,
 which is mounted into the container, so later deploys start in seconds.
@@ -115,7 +132,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 |-------|-------|
 | V1 | Local end-to-end with Docker, Terraform modules written (done) |
 | V2 | Kubernetes on kind, Helm chart, environments (done) |
-| V3 | GitHub Actions CI, ECR publishing, Argo CD |
+| V3 | GitHub Actions CI, GHCR publishing, Argo CD GitOps (done) |
 | V4 | Prometheus, Grafana, OpenTelemetry dashboards |
 | V5 | Load testing, autoscaling on inference metrics, benchmarks |
 | V6 | vLLM on GPU nodes |

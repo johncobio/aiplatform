@@ -1,0 +1,50 @@
+# Every deploy/workloads/<env>/<name>.values.yaml becomes one Application.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: aiplatform-workloads
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/johncobio/aiplatform.git
+        revision: main
+        files:
+          - path: "deploy/workloads/*/*.values.yaml"
+  template:
+    metadata:
+      name: "{{ .environment }}-{{ .nameOverride }}"
+      labels:
+        aiplatform.io/environment: "{{ .environment }}"
+        aiplatform.io/workload: "{{ .nameOverride }}"
+    spec:
+      project: aiplatform
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "aiplatform-{{ .environment }}"
+      sources:
+        - repoURL: https://github.com/johncobio/aiplatform.git
+          targetRevision: main
+          path: deploy/helm/llm-workload
+          helm:
+            releaseName: "{{ .nameOverride }}"
+            valueFiles:
+              - "$values/deploy/environments/{{ .environment }}/values.yaml"
+              - "$values/{{ .path.path }}/{{ .path.filename }}"
+        - repoURL: https://github.com/johncobio/aiplatform.git
+          targetRevision: main
+          ref: values
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 2m

@@ -16,12 +16,24 @@ class FakeRunner:
 
     def __call__(self, cmd, **kwargs):
         self.calls.append(list(cmd))
-        key = " ".join(cmd[:2])
-        if key in self.failures:
+        joined = " ".join(cmd)
+        failure = self._match(self.failures, joined)
+        if failure is not None:
             from aiplatform.errors import CommandError
 
-            raise CommandError(cmd, self.failures[key], "simulated failure")
-        return subprocess.CompletedProcess(cmd, 0, stdout=self.responses.get(key, ""), stderr="")
+            if kwargs.get("check", True):
+                raise CommandError(cmd, failure, "simulated failure")
+            return subprocess.CompletedProcess(cmd, failure, stdout="", stderr="simulated failure")
+        stdout = self._match(self.responses, joined) or ""
+        return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
+
+    @staticmethod
+    def _match(table, joined):
+        """Longest key that is a prefix of the joined command wins."""
+        for key in sorted(table, key=len, reverse=True):
+            if joined.startswith(key):
+                return table[key]
+        return None
 
     def find(self, *prefix):
         return [c for c in self.calls if c[: len(prefix)] == list(prefix)]

@@ -19,6 +19,11 @@ def up() -> None:
     result = run_pipeline(cluster_mod.up_steps(), {})
     if result.succeeded:
         console.print(f"\nCluster ready. kubectl context: [bold]{KUBE_CONTEXT}[/bold]")
+        console.print(
+            "Argo CD UI: [bold]http://argocd.127.0.0.1.nip.io[/bold] (user admin, password: "
+            "`kubectl -n argocd get secret argocd-initial-admin-secret "
+            "-o jsonpath='{.data.password}' | base64 -d`)"
+        )
     exit_for(result)
 
 

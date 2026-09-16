@@ -18,6 +18,8 @@ INGRESS_NGINX_CHART = "4.15.1"
 INGRESS_NGINX_REPO = "https://kubernetes.github.io/ingress-nginx"
 METRICS_SERVER_CHART = "3.14.0"
 METRICS_SERVER_REPO = "https://kubernetes-sigs.github.io/metrics-server/"
+ARGOCD_CHART = "10.9.1"  # Argo CD v3.5.3
+ARGOCD_REPO = "https://argoproj.github.io/argo-helm"
 
 
 def cluster_exists(run: shell.Runner) -> bool:
@@ -73,7 +75,7 @@ class InstallAddon(Step):
             "helm", "--kube-context", KUBE_CONTEXT, "upgrade", "--install", self.addon, self.addon,
             "--repo", self.repo, "--version", self.version,
             "-n", self.namespace, "--create-namespace",
-            "-f", str(values), "--wait", "--timeout", "300s",
+            "-f", str(values), "--wait", "--timeout", "600s",
         ]  # fmt: skip
         self._run(cmd)
         return f"chart {self.version} in {self.namespace}"
@@ -105,6 +107,19 @@ class IngressReady(Step):
         return "http://*.<env>.127.0.0.1.nip.io"
 
 
+class ApplyGitOpsConfig(Step):
+    name = "GitOps project and ApplicationSet applied"
+
+    def __init__(self, run: shell.Runner) -> None:
+        super().__init__()
+        self._run = run
+
+    def run(self, ctx: Context) -> str | None:
+        manifests = paths.repo_root() / "deploy" / "argocd"
+        self._run(["kubectl", "--context", KUBE_CONTEXT, "apply", "-f", str(manifests)])
+        return "deploy/argocd"
+
+
 class DeleteCluster(Step):
     name = "kind cluster deleted"
 
@@ -130,6 +145,8 @@ def up_steps(run: shell.Runner = shell.run) -> list[Step]:
         InstallAddon(
             run, "metrics-server", METRICS_SERVER_REPO, METRICS_SERVER_CHART, "kube-system"
         ),
+        InstallAddon(run, "argo-cd", ARGOCD_REPO, ARGOCD_CHART, "argocd"),
+        ApplyGitOpsConfig(run),
     ]
 
 

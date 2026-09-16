@@ -2,6 +2,8 @@
 
 from aiplatform.commands.common import (
     DirOption,
+    EnvOption,
+    ImageTagOption,
     TargetOption,
     TimeoutOption,
     build_context,
@@ -19,10 +21,12 @@ def deploy(
     directory: DirOption = None,
     target: TargetOption = "local",
     timeout: TimeoutOption = 600,
+    env: EnvOption = None,
+    image_tag: ImageTagOption = None,
 ) -> None:
     """Deploy the workload described by aiplatform.yaml."""
     try:
-        ctx = build_context(directory, timeout=timeout)
+        ctx = build_context(directory, timeout=timeout, environment=env, image_tag=image_tag)
         tgt = resolve_target(target)
         steps = [ValidateConfigStep(), ResolveModelStep()] + tgt.deploy_steps(ctx)
     except AiPlatformError as e:

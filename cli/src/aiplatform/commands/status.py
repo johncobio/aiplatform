@@ -4,6 +4,7 @@ from rich.table import Table
 
 from aiplatform.commands.common import (
     DirOption,
+    EnvOption,
     TargetOption,
     build_context,
     console,
@@ -13,10 +14,12 @@ from aiplatform.commands.common import (
 from aiplatform.errors import AiPlatformError
 
 
-def status(directory: DirOption = None, target: TargetOption = "local") -> None:
+def status(
+    directory: DirOption = None, target: TargetOption = "local", env: EnvOption = None
+) -> None:
     """Show whether the workload is running and ready."""
     try:
-        ctx = build_context(directory)
+        ctx = build_context(directory, environment=env)
         tgt = resolve_target(target)
         st = tgt.status(ctx)
     except AiPlatformError as e:
