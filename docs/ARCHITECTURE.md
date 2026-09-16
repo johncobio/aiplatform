@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V1 (local target implemented; AWS single-instance target in progress)._
+_Status: V2 (local Docker target and Kubernetes-on-kind target implemented; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -29,8 +29,8 @@ flowchart LR
 
     subgraph Targets
         local[local: Docker]
-        aws[aws: ECR + EC2 (V1)]
-        eks[eks: Helm / Argo CD (V2+)]
+        kind[kind: Helm on kind\ningress-nginx + metrics-server]
+        eks[eks: Helm on EKS (later)]
     end
 
     subgraph Workload["llm-service container"]
@@ -43,10 +43,10 @@ flowchart LR
 
     cfg --> cli --> v1 --> v2 --> b --> d --> h
     d --> local
-    d --> aws
+    d --> kind
     d --> eks
     local --> Workload
-    aws --> Workload
+    kind --> Workload
     eks --> Workload
 ```
 
@@ -63,8 +63,19 @@ flowchart LR
   structured events, and stops at the first failure. Every phase of the
   project adds steps rather than commands.
 - **Targets** (`aiplatform.targets`): `Target` interface with `deploy`,
-  `status`, `logs`, `rollback`, `destroy`. V1 ships `local` (Docker CLI via
-  subprocess). Later: `aws` (EC2 via SSM), `eks` (Helm, then Argo CD).
+  `status`, `logs`, `rollback`, `destroy`, each expressed as steps. Shared
+  steps (`steps/docker.py`, `steps/health.py`, `steps/record.py`) are composed
+  by every target so behaviour stays identical.
+  - `local`: Docker CLI via subprocess.
+  - `kind`: builds the image, `kind load`s it, runs `helm upgrade --install`
+    with generated values, waits for rollout, probes the ingress. Rollback is
+    `helm rollback` to the previous revision.
+  - `eks` (later): same chart; pushes to ECR instead of `kind load`.
+- **Cluster** (`aiplatform.cluster`, `aiplatform cluster up|down|status`):
+  creates the single-node kind cluster from `deploy/kind/cluster.yaml` and
+  installs pinned add-ons: ingress-nginx (host ports 80/443) and
+  metrics-server (HPA). Workloads are reachable at
+  `http://<name>.<env>.127.0.0.1.nip.io`.
 - **State**: per-workload deployment history in `.aiplatform/<env>/<name>.json`
   (image tags, timestamps) so `rollback` can re-deploy the previous release.
 
@@ -86,6 +97,19 @@ proxying to a hosted API.
   `llm_prompt_tokens_total`, `llm_completion_tokens_total`,
   `llm_generation_tokens_per_second`, `llm_model_load_seconds`,
   `llm_inflight_requests`, `llm_queue_depth`, `llm_model_info`.
+
+### Helm chart: `llm-workload` (`deploy/helm/llm-workload/`)
+
+The deployment contract for every Kubernetes target. Renders a Deployment
+(rolling update with zero unavailable, startup/readiness/liveness probes,
+non-root, read-only root filesystem, all capabilities dropped), Service,
+Ingress, HPA when `autoscaling.max > 1`, PDB when more than one replica can
+exist, ServiceAccount (token not auto-mounted) and a `keep`-annotated PVC for
+the model cache. The CLI translates `aiplatform.yaml` into values
+(`cli/src/aiplatform/targets/kind.py: build_values`): CPU request is half the
+limit, memory request equals the limit. Environment overrides live in
+`deploy/environments/<env>/values.yaml`; one namespace per environment
+(`aiplatform-<env>`).
 
 ### Infrastructure (`infra/terraform/`)
 
@@ -110,6 +134,16 @@ proxying to a hosted API.
 4. Poll `/healthz` then `/readyz` until ready (model download + load happens
    here on first run).
 5. Record the release in local state; print the endpoint.
+
+## Data flow: `aiplatform deploy --target kind`
+
+1. Validate config, resolve model; check Docker, kind cluster and context.
+2. `docker build`, then `kind load docker-image` into the node's containerd.
+3. Write generated values to `.aiplatform/<env>/<name>.values.yaml`; run
+   `helm upgrade --install` with environment values + generated values.
+4. `kubectl rollout status`, then probe `/healthz` and `/readyz` through the
+   ingress host.
+5. Record the release; print the endpoint.
 
 ## Cross-cutting
 

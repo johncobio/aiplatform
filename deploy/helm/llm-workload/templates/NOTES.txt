@@ -1,0 +1,7 @@
+{{ .Release.Name }} deployed to namespace {{ .Release.Namespace }} ({{ .Values.environment }}).
+{{- if .Values.ingress.enabled }}
+Endpoint: http://{{ .Values.ingress.host }}
+{{- else }}
+No ingress. Port-forward: kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "llm-workload.fullname" . }} {{ .Values.port }}:{{ .Values.port }}
+{{- end }}
+Model: {{ .Values.model.name }} ({{ .Values.model.backend }})

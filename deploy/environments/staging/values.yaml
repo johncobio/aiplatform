@@ -1,0 +1,7 @@
+# Environment overrides for `staging` on kind. On EKS this file will switch the
+# ingress class to alb and the storage class to gp3/efs.
+environment: staging
+ingress:
+  className: nginx
+persistence:
+  storageClass: standard

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: llm-workload
+description: Deploys an aiplatform LLM inference workload (Deployment, Service, Ingress, HPA, PDB, model cache PVC)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [llm, inference, aiplatform]

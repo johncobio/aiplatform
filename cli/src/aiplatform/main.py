@@ -5,7 +5,17 @@ from typing import Annotated
 import typer
 
 from aiplatform import __version__
-from aiplatform.commands import deploy, destroy, init, logs, models, rollback, status, validate
+from aiplatform.commands import (
+    cluster,
+    deploy,
+    destroy,
+    init,
+    logs,
+    models,
+    rollback,
+    status,
+    validate,
+)
 from aiplatform.logging import configure_logging
 
 app = typer.Typer(
@@ -43,6 +53,7 @@ app.command()(logs.logs)
 app.command()(rollback.rollback)
 app.command()(destroy.destroy)
 app.command()(models.models)
+app.add_typer(cluster.app, name="cluster")
 
 if __name__ == "__main__":
     app()

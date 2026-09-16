@@ -1,0 +1,15 @@
+{{- /* A PDB with one replica would block node drains; only emit it when more than one replica can exist. */ -}}
+{{- $maxReplicas := ternary .Values.autoscaling.maxReplicas .Values.replicaCount .Values.autoscaling.enabled -}}
+{{- if and .Values.podDisruptionBudget.enabled (gt (int $maxReplicas) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "llm-workload.fullname" . }}
+  labels:
+    {{- include "llm-workload.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "llm-workload.selectorLabels" . | nindent 6 }}
+{{- end }}

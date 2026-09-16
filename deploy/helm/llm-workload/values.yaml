@@ -1,0 +1,89 @@
+# Default values. The aiplatform CLI overrides image, resources, model and
+# autoscaling from aiplatform.yaml; environments override the rest in
+# deploy/environments/<env>/values.yaml.
+
+nameOverride: ""
+environment: dev
+
+image:
+  repository: aiplatform/llm-service
+  tag: ""            # required; set by the CLI
+  pullPolicy: IfNotPresent
+
+replicaCount: 1      # used only when autoscaling.enabled is false
+
+port: 8000
+
+model:
+  backend: llamacpp
+  name: ""
+  url: ""
+  contextLength: 4096
+  threads: 2
+
+# Extra environment variables for the container.
+env: {}
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+# Model cache shared by replicas on one node (RWO). See ADR 0005.
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClass: ""   # cluster default
+  accessMode: ReadWriteOnce
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""           # e.g. llm-service.dev.127.0.0.1.nip.io
+  annotations: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+serviceAccount:
+  create: true
+  annotations: {}    # EKS: eks.amazonaws.com/role-arn for IRSA
+
+# Startup probe tolerates the first-run model download.
+probes:
+  startupFailureThreshold: 60   # x 10s = 10 minutes
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: /metrics
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

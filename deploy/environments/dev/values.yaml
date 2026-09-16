@@ -1,0 +1,6 @@
+# Environment overrides applied to every workload deployed to `dev` on kind.
+environment: dev
+ingress:
+  className: nginx
+persistence:
+  storageClass: standard   # kind's local-path provisioner

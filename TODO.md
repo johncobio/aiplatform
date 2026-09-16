@@ -16,17 +16,18 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [x] Tests: config validation, pipeline, service API
 - [x] Terraform modules: `network`, `ecr`, `ec2-service`; `environments/dev`
 - [x] Remote state bootstrap (S3 + native lockfile)
-- [ ] `aws` target: push to ECR, deploy to EC2 via SSM, health check (cost-gated)
+- [ ] `aws` target: push to ECR, deploy to EC2 via SSM, health check (cost-gated) — moved to the AWS section
 - [x] Record first measurements: image build time, image size, model load time, local tokens/sec
 - [x] Setup/teardown docs
 
-## V2 — Kubernetes / EKS / Helm
+## V2 — Kubernetes (kind) / Helm
 
-- [ ] `eks` Terraform module (managed node group, small Graviton nodes, no NAT if possible via public subnets + IRSA)
-- [ ] Helm chart for LLM workloads (Deployment, Service, HPA, PDB, ServiceAccount)
-- [ ] `eks` target in CLI (helm upgrade --install, rollout status)
-- [ ] Environment overlays dev/staging
-- [ ] Ingress via AWS Load Balancer Controller (cost-gated: ALB ≈ $16/mo)
+- [x] Helm chart for LLM workloads (Deployment, Service, Ingress, HPA, PDB, ServiceAccount, PVC)
+- [x] `aiplatform cluster up|down|status`: kind + ingress-nginx + metrics-server (pinned)
+- [x] `kind` target in CLI (build, kind load, helm upgrade --install, rollout status, ingress health check, helm rollback)
+- [x] Environment overlays dev/staging (`deploy/environments/<env>/values.yaml`)
+- [ ] Skip `kind load` when the image already exists in the node (minor)
+- [ ] Decide model distribution for multi-node clusters (bake into image vs S3 init container vs EFS); RWO PVC only works on one node
 
 ## V3 — CI/CD
 
@@ -58,6 +59,15 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [ ] `aiplatform propose "<request>"` → generated Terraform/config diff
 - [ ] Pipeline: fmt → validate → plan → checkov → conftest/OPA → cost estimate → human approval → PR
 - [ ] OPA policies: required tags, no public S3, instance type allowlist, cost caps
+
+## AWS (deferred until the local platform is complete)
+
+- [ ] Bootstrap state bucket; apply `dev` with `enable_compute=false` (cost ≈ $0)
+- [ ] `eks` Terraform module (managed node group, small Graviton nodes, public subnets, IRSA)
+- [ ] `eks` target in CLI (ECR push instead of kind load; same chart)
+- [ ] Ingress via AWS Load Balancer Controller (cost-gated: ALB ≈ $16/mo)
+- [ ] OIDC federation GitHub → AWS; Argo CD pointed at EKS
+- [ ] Decide whether the V1 `ec2-service` module is still worth applying or is superseded by EKS
 
 ## V8 — Reliability
 

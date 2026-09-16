@@ -1,0 +1,23 @@
+# ingress-nginx on kind: bind host ports 80/443 on the node that maps them to the laptop.
+controller:
+  hostPort:
+    enabled: true
+  service:
+    type: NodePort
+  nodeSelector:
+    ingress-ready: "true"
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Equal
+      effect: NoSchedule
+  publishService:
+    enabled: false
+  extraArgs:
+    publish-status-address: localhost
+  watchIngressWithoutClass: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+  admissionWebhooks:
+    enabled: false   # saves a pod on a memory-constrained laptop

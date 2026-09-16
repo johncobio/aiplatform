@@ -41,10 +41,14 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V1 in progress.** Working today:
+**V2 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
-  `destroy`, `models` against a `local` Docker target.
+  `destroy`, `models`, `cluster up|down|status`, against two targets:
+  `local` (Docker) and `kind` (Kubernetes via Helm, with ingress-nginx and
+  metrics-server installed by the platform).
+- `deploy/helm/llm-workload`: the Helm chart every Kubernetes target uses
+  (hardened Deployment, Service, Ingress, HPA, PDB, model-cache PVC).
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -64,6 +68,17 @@ curl -s localhost:8000/v1/chat/completions -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","content":"Explain GitOps in one sentence."}],"max_tokens":64}'
 curl -s localhost:8000/metrics | grep ^llm_
 make destroy-local
+```
+
+### Kubernetes (kind) quick start
+
+```
+make cluster-up            # kind + ingress-nginx + metrics-server, ~90 s
+make run-kind              # build, load, helm upgrade --install, rollout, health check
+curl -s http://llm-service.dev.127.0.0.1.nip.io/v1/models
+kubectl --context kind-aiplatform -n aiplatform-dev get deploy,hpa,ingress
+make destroy-kind          # helm uninstall (model cache PVC is kept)
+make cluster-down          # delete the cluster
 ```
 
 The first deploy downloads the model (~400 MB) into `~/.aiplatform/models`,
@@ -98,14 +113,15 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 
 | Phase | Scope |
 |-------|-------|
-| V1 | Local end-to-end, Terraform modules, single EC2 deploy |
-| V2 | EKS, Helm, environments |
+| V1 | Local end-to-end with Docker, Terraform modules written (done) |
+| V2 | Kubernetes on kind, Helm chart, environments (done) |
 | V3 | GitHub Actions CI, ECR publishing, Argo CD |
 | V4 | Prometheus, Grafana, OpenTelemetry dashboards |
 | V5 | Load testing, autoscaling on inference metrics, benchmarks |
 | V6 | vLLM on GPU nodes |
 | V7 | AI-proposed infrastructure changes with validation, policy, cost and human approval gates |
 | V8 | SLOs, alerting, chaos testing, runbooks |
+| AWS | Terraform apply: state bucket, VPC, ECR, EKS; same chart and GitOps flow on a real cluster |
 
 ## Cost policy
 

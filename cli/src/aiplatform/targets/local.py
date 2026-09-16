@@ -1,22 +1,22 @@
 """`local` target: run the workload as a Docker container on this machine.
 
-Mirrors what the Kubernetes target will do later (build, push-equivalent,
-run with resource limits, readiness gate) so the developer experience is
-identical across targets.
+Mirrors what the Kubernetes targets do (build, run with resource limits,
+readiness gate) so the developer experience is identical across targets.
 """
 
 import json
 import logging
-import subprocess
-import time
 from collections.abc import Callable
 from pathlib import Path
 
 from aiplatform import http, shell
 from aiplatform.config.schema import WorkloadConfig
 from aiplatform.errors import StepError, TargetError
-from aiplatform.state import Release, StateStore
+from aiplatform.state import StateStore
+from aiplatform.steps.docker import BuildImageStep, DockerAvailableStep
+from aiplatform.steps.health import HealthCheckStep
 from aiplatform.steps.pipeline import Context, Step
+from aiplatform.steps.record import RecordReleaseStep
 from aiplatform.targets.base import Target, TargetStatus
 
 log = logging.getLogger(__name__)
@@ -27,18 +27,6 @@ CONTAINER_MODEL_DIR = "/models"
 
 def _container_name(cfg: WorkloadConfig) -> str:
     return f"aiplatform-{cfg.environment}-{cfg.name}"
-
-
-def _image_tag() -> str:
-    """Timestamp plus short git SHA when available: sortable and traceable."""
-    ts = time.strftime("%Y%m%d-%H%M%S")
-    try:
-        sha = subprocess.run(  # noqa: S603,S607
-            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False
-        ).stdout.strip()
-    except OSError:
-        sha = ""
-    return f"{ts}-{sha}" if sha else ts
 
 
 class LocalDockerTarget(Target):
@@ -61,18 +49,24 @@ class LocalDockerTarget(Target):
         if cfg.model_spec.requires_gpu:
             raise TargetError(f"model {cfg.model!r} requires a GPU; the local target is CPU-only")
         return [
-            _Preflight(self),
-            _Build(self),
+            DockerAvailableStep(self._run),
+            BuildImageStep(self._run),
             _Run(self),
-            _HealthCheck(self),
-            _Record(self),
+            HealthCheckStep(self._wait),
+            RecordReleaseStep(self.name),
         ]
 
     def rollback_steps(self, ctx: Context) -> list[Step]:
-        return [_Preflight(self), _SelectPrevious(), _Run(self), _HealthCheck(self), _Record(self)]
+        return [
+            DockerAvailableStep(self._run),
+            _SelectPrevious(),
+            _Run(self),
+            HealthCheckStep(self._wait),
+            RecordReleaseStep(self.name),
+        ]
 
     def destroy_steps(self, ctx: Context) -> list[Step]:
-        return [_Preflight(self), _Remove(self)]
+        return [DockerAvailableStep(self._run), _Remove(self)]
 
     # Queries -------------------------------------------------------------
 
@@ -141,40 +135,6 @@ class LocalDockerTarget(Target):
         ctx["endpoint"] = f"http://localhost:{cfg.port}"
 
 
-class _Preflight(Step):
-    name = "Docker available"
-
-    def __init__(self, target: LocalDockerTarget) -> None:
-        super().__init__()
-        self.t = target
-
-    def run(self, ctx: Context) -> str | None:
-        shell.require("docker", "Install Docker Desktop and make sure it is running.")
-        proc = self.t._run(["docker", "info", "--format", "{{.ServerVersion}}"], check=False)
-        if proc.returncode != 0:
-            raise StepError("docker daemon is not reachable; is Docker Desktop running?")
-        return proc.stdout.strip() or None
-
-
-class _Build(Step):
-    name = "Docker image built"
-
-    def __init__(self, target: LocalDockerTarget) -> None:
-        super().__init__()
-        self.t = target
-
-    def run(self, ctx: Context) -> str | None:
-        cfg: WorkloadConfig = ctx["config"]
-        context_dir = (Path(ctx["workload_dir"]) / cfg.context).resolve()
-        if not (context_dir / "Dockerfile").is_file():
-            raise StepError(f"no Dockerfile in build context {context_dir}")
-        tag = _image_tag()
-        image = f"aiplatform/{cfg.name}:{tag}"
-        self.t._run(["docker", "build", "-t", image, str(context_dir)])
-        ctx["image"], ctx["tag"] = image, tag
-        return image
-
-
 class _SelectPrevious(Step):
     name = "Previous release selected"
 
@@ -198,44 +158,6 @@ class _Run(Step):
     def run(self, ctx: Context) -> str | None:
         self.t.run_container(ctx, ctx["image"])
         return ctx["container"]
-
-
-class _HealthCheck(Step):
-    name = "Health checks passed"
-
-    def __init__(self, target: LocalDockerTarget) -> None:
-        super().__init__()
-        self.t = target
-
-    def run(self, ctx: Context) -> str | None:
-        endpoint = ctx["endpoint"]
-        timeout = float(ctx.get("timeout", 600))
-        t0 = time.monotonic()
-        self.t._wait(f"{endpoint}/healthz", timeout=min(60.0, timeout), label="liveness")
-        self.t._wait(f"{endpoint}/readyz", timeout=timeout, label="readiness")
-        waited = time.monotonic() - t0
-        ctx["ready_seconds"] = waited
-        return f"ready after {waited:.1f}s"
-
-
-class _Record(Step):
-    name = "Release recorded"
-
-    def __init__(self, target: LocalDockerTarget) -> None:
-        super().__init__()
-        self.t = target
-
-    def run(self, ctx: Context) -> str | None:
-        cfg: WorkloadConfig = ctx["config"]
-        state: StateStore = ctx["state"]
-        state.record(
-            cfg.environment,
-            cfg.name,
-            Release(
-                tag=ctx["tag"], image=ctx["image"], target=self.t.name, endpoint=ctx["endpoint"]
-            ),
-        )
-        return ctx["tag"]
 
 
 class _Remove(Step):

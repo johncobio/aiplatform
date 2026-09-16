@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "llm-workload.fullname" . }}
+  labels:
+    {{- include "llm-workload.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "llm-workload.selectorLabels" . | nindent 4 }}

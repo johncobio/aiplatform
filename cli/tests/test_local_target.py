@@ -4,15 +4,15 @@ import json
 import pytest
 
 from aiplatform.state import StateStore
+from aiplatform.steps import docker as docker_steps
 from aiplatform.steps.pipeline import Pipeline
-from aiplatform.targets import local as local_mod
 from aiplatform.targets.local import LocalDockerTarget
 
 
 @pytest.fixture(autouse=True)
 def unique_tags(monkeypatch):
     counter = itertools.count(1)
-    monkeypatch.setattr(local_mod, "_image_tag", lambda: f"tag{next(counter)}")
+    monkeypatch.setattr(docker_steps, "image_tag", lambda: f"tag{next(counter)}")
 
 
 def make_ctx(config, tmp_path):

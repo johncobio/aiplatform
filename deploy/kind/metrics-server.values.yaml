@@ -1,0 +1,8 @@
+# metrics-server on kind: kubelet serves self-signed certs.
+args:
+  - --kubelet-insecure-tls
+  - --metric-resolution=15s
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
