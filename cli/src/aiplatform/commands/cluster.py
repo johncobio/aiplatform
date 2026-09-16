@@ -61,7 +61,8 @@ def status() -> None:
 
 
 addon_app = typer.Typer(
-    help="Pause or resume platform add-ons (argocd, observability).", no_args_is_help=True
+    help="Pause or resume platform add-ons (argocd, observability, metrics, grafana, tracing).",
+    no_args_is_help=True,
 )
 app.add_typer(addon_app, name="addon")
 

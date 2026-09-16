@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V4 (Docker, kind and GitOps targets; GitHub Actions CI; Argo CD; Prometheus/Grafana/OpenTelemetry/Jaeger on kind; AWS Terraform written, not applied)._
+_Status: V5 (Docker, kind and GitOps targets; CI; Argo CD; Prometheus/Grafana/OTel/Jaeger; HPA on pending requests via prometheus-adapter; k6 load tests; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -172,6 +172,18 @@ limit, memory request equals the limit. Environment overrides live in
   request rate, P50/P95/P99, tokens/s, per-request generation speed, queue
   depth and in-flight, error rate, replicas vs HPA target, CPU and memory vs
   limits, model load time, estimated cost per hour and per 1k requests.
+
+### Autoscaling and load testing (`deploy/kind/prometheus-adapter.values.yaml`, `loadtest/`)
+
+- prometheus-adapter serves `llm_pending_requests` (queue depth + in-flight,
+  per pod) on `custom.metrics.k8s.io`. The chart's HPA targets an average of
+  `autoscaling.target` pending requests per pod (ADR 0008); `metric: cpu`
+  remains available.
+- `PrometheusRule aiplatform-llm` records request rate, error ratio, P50/P95/
+  P99, token rate and pending requests for dashboards and V8 alerts.
+- k6 scenarios (`make loadtest SCENARIO=steady VUS=2`) drive the staging
+  endpoint; `loadtest/report.py` joins k6 client metrics with server-side
+  Prometheus maxima for `docs/benchmarks/`.
 
 ### Infrastructure (`infra/terraform/`)
 

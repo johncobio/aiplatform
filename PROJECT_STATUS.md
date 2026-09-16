@@ -4,8 +4,8 @@ _Last updated: 2026-09-16_
 
 ## Current phase
 
-**V4 complete (observability).** Next: V5 load testing and autoscaling on
-inference metrics. AWS is deliberately last (ADR 0005).
+**V5 complete (load testing + autoscaling).** Next: V6 real inference
+engines (vLLM contract, llama.cpp server). AWS is deliberately last (ADR 0005).
 
 ## Completed
 
@@ -64,6 +64,20 @@ inference metrics. AWS is deliberately last (ADR 0005).
   log correlation). 91 CLI tests + 13 service tests. ADR 0007.
 - Baseline: `docs/benchmarks/2026-09-16-v4-observability-baseline.md`.
 
+### V5 — Load testing and autoscaling
+- HPA on `llm_pending_requests` (queue depth + in-flight per pod) served by
+  prometheus-adapter; `autoscaling.metric: queue|cpu` and `target` in
+  `aiplatform.yaml`; scale-up 1 pod/30 s, scale-down after 120 s (ADR 0008).
+- PrometheusRule recording rules for the inference signals.
+- k6 scenarios (smoke, steady, ramp, step) + `loadtest/report.py`.
+- `LLM_MLOCK` + warm-up generation: new replica ready in 2.9 s, no cold
+  first request.
+- `cluster addon pause|resume` gained `metrics`, `grafana`, `tracing`.
+- Measured: scale decision 60 s after a load step, replica serving at 80 s;
+  single replica ≈ 0.52 req/s / 16.5 tok/s; two replicas on one 4-vCPU node
+  only +14 % (CPU contention). 0 % errors across 352 requests.
+- Baseline: `docs/benchmarks/2026-09-16-v5-load-and-autoscaling.md`.
+
 ## Current architecture
 
 See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker, `kind`
@@ -78,9 +92,10 @@ direct kind deploys, `staging` = GitOps.
 - **Run GitOps or observability, not both, on this laptop.** Argo CD is
   currently paused (`aiplatform cluster addon resume argocd` before a gitops
   deploy; pause observability first).
-- **Cold model after idle under memory pressure:** first request took 19–52 s
-  several times (mmap'd GGUF pages evicted). Needs mlock/preload or headroom;
-  measure properly in V5.
+- Cold-model-after-idle is mitigated (mlock + warm-up); not yet re-measured
+  under deliberate memory pressure.
+- Horizontal scaling on the single kind node adds little capacity (CPU
+  contention); meaningful autoscaling results need multi-node (EKS).
 - Jaeger v2 exposes the query API under `/api/v3/`; the UI at
   `jaeger.127.0.0.1.nip.io` works as usual.
 
@@ -117,10 +132,9 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **V5 load testing + autoscaling:** k6 scenarios against staging; HPA on
-   `llm_queue_depth` / in-flight via Prometheus Adapter (or KEDA); recording
-   rules; results in `docs/benchmarks/`. Memory: only one extra replica fits.
-2. **Cold-model fix:** evaluate `use_mlock` in llama.cpp and a startup warm-up
-   request; measure first-request latency before/after.
-3. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer;
-   recording rules for dashboard queries.
+1. **V6 inference engines:** an `engine` abstraction in the chart and CLI so
+   a workload can run the built-in service, upstream llama.cpp server, or
+   vLLM (GPU, validated by template tests until the AWS phase), with
+   recording rules normalising each engine's native metrics into the
+   `aiplatform:*` series the dashboard and HPA already use.
+2. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.

@@ -92,8 +92,13 @@ See `TODO.md` for the backlog and `PROJECT_STATUS.md` for where we are.
 - kind's control plane alone uses ~1 GiB. Argo CD (~0.5 GiB) and the
   observability stack (~0.9 GiB) cannot both run beside a 1 GiB LLM workload
   with a rolling-update surge. Use `aiplatform cluster addon pause|resume
-  <argocd|observability>` and never run `cluster up` expecting everything to
-  fit at once.
+  <argocd|observability|metrics|grafana|tracing>` and never run `cluster up`
+  expecting everything to fit at once. `cluster up` (helm upgrade) resets
+  paused add-ons to their chart replica counts; re-pause afterwards.
+- The queue-based HPA needs `metrics` running; if the adapter is paused the
+  HPA shows `<unknown>` and Argo CD marks the Application Degraded.
+- Docker Desktop is set to 4 vCPUs (of 6) and 4 GB so the VM does not starve
+  the host; the host swapping is what stalls etcd, not the cluster itself.
 - Dashboards: edit `scripts/gen_dashboard.py` and regenerate; never hand-edit the JSON.
 - Multi-source Argo CD Applications report `status.sync.revisions` (list),
   not `revision`.

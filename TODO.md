@@ -45,14 +45,17 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [x] OpenTelemetry Collector + OTLP traces from the service with gen_ai.* attributes; Jaeger backend
 - [x] ServiceMonitor in the chart with environment/workload/model labels
 - [x] Grafana dashboard: request rate, P50/P95/P99, tokens/sec, queue depth, error rate, replicas, CPU/mem, model load, cost estimate
-- [ ] Recording rules for the dashboard queries (needed before alerting in V8)
+- [x] Recording rules for the dashboard queries
 - [ ] Log aggregation (Loki or OTel logs pipeline) — currently `kubectl logs` only
 
 ## V5 — Load testing and autoscaling
 
-- [ ] k6 load test scenarios
-- [ ] HPA on custom metrics (queue depth / in-flight) via Prometheus Adapter or KEDA
-- [ ] Benchmarks recorded in `docs/benchmarks/`
+- [x] k6 load test scenarios (smoke, steady, ramp, step) with token-throughput metric
+- [x] HPA on `llm_pending_requests` via prometheus-adapter; `autoscaling.metric: queue|cpu`
+- [x] Recording rules (PrometheusRule)
+- [x] mlock + warm-up for cold-model latency
+- [x] Benchmarks recorded in `docs/benchmarks/`
+- [ ] Larger-scale runs need more than one node: revisit on EKS with a node group autoscaler
 
 ## V6 — Real LLM serving
 

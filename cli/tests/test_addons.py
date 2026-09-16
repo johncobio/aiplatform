@@ -55,3 +55,16 @@ def test_empty_namespace_is_an_error(runner):
     runner.responses[LIST_KEY] = json.dumps({"items": []})
     result = Pipeline().run([ScaleAddon(runner, "argocd", resume=False)], {})
     assert not result.succeeded and "installed" in result.error
+
+
+def test_fine_grained_addon_only_touches_listed_workloads(runner):
+    key = "kubectl --context kind-aiplatform -n observability get deployments,statefulsets"
+    runner.responses[key] = workloads(
+        ("Deployment", "kube-prometheus-stack-grafana", 1, {}),
+        ("Deployment", "jaeger", 1, {}),
+        ("StatefulSet", "prometheus-prom-prometheus", 1, {}),
+    )
+    result = Pipeline().run([ScaleAddon(runner, "grafana", resume=False)], {})
+    assert result.succeeded, result.error
+    scales = [c for c in runner.calls if "scale" in c]
+    assert len(scales) == 1 and "kube-prometheus-stack-grafana" in scales[0]

@@ -41,7 +41,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V4 complete locally; AWS deliberately deferred.** Working today:
+**V5 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -57,6 +57,10 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   rate, P50/P95/P99, tokens/s, queue depth, error rate, replicas, CPU/memory,
   model load time, cost estimates), OpenTelemetry traces with GenAI span
   attributes into Jaeger, all installed by `cluster up`.
+- **Autoscaling on inference demand**: HPA on `llm_pending_requests` (queue
+  depth + in-flight per pod) through prometheus-adapter, chosen in
+  `aiplatform.yaml` with `autoscaling.metric: queue`. k6 load tests and
+  measured results in `docs/benchmarks/`.
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -102,6 +106,15 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 Convention: `dev` is for direct deploys from a laptop (`--target kind`);
 `staging` is owned by Argo CD (`--target gitops`).
 
+### Load testing
+
+```
+make loadtest SCENARIO=smoke                       # 1 VU, 30 s
+make loadtest SCENARIO=steady VUS=2 DURATION=2m
+make loadtest SCENARIO=step STEP_DURATION=2m       # 1 → 2 → 4 VUs; watch the HPA
+kubectl -n aiplatform-staging get hpa -w
+```
+
 ### Observability UIs (after `make cluster-up`)
 
 | UI | URL |
@@ -118,8 +131,12 @@ state are kept, only the pods stop:
 ```
 uv run --project cli aiplatform cluster addon pause argocd          # doing dashboards / load tests
 uv run --project cli aiplatform cluster addon resume argocd         # doing GitOps deploys
-uv run --project cli aiplatform cluster addon pause observability
+uv run --project cli aiplatform cluster addon pause observability   # everything in the observability namespace
+uv run --project cli aiplatform cluster addon pause grafana         # finer: grafana | tracing | metrics
 ```
+
+`metrics` (Prometheus, operator, kube-state-metrics, prometheus-adapter) is
+what the queue-based HPA needs; keep it running during load tests.
 
 The first deploy downloads the model (~400 MB) into `~/.aiplatform/models`,
 which is mounted into the container, so later deploys start in seconds.
@@ -157,7 +174,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 | V2 | Kubernetes on kind, Helm chart, environments (done) |
 | V3 | GitHub Actions CI, GHCR publishing, Argo CD GitOps (done) |
 | V4 | Prometheus, Grafana, OpenTelemetry traces, Jaeger, inference dashboard (done) |
-| V5 | Load testing, autoscaling on inference metrics, benchmarks |
+| V5 | k6 load tests, HPA on pending requests, benchmarks (done) |
 | V6 | vLLM on GPU nodes |
 | V7 | AI-proposed infrastructure changes with validation, policy, cost and human approval gates |
 | V8 | SLOs, alerting, chaos testing, runbooks |

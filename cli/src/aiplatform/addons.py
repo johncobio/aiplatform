@@ -12,10 +12,23 @@ from aiplatform.errors import StepError
 from aiplatform.steps.pipeline import Context, Step
 from aiplatform.targets.kind import KUBE_CONTEXT
 
-# addon name -> namespace whose Deployments/StatefulSets are scaled.
-ADDONS: dict[str, str] = {
-    "argocd": "argocd",
-    "observability": "observability",
+# addon name -> (namespace, workload-name filter or None for everything in it).
+# Finer-grained entries let a laptop keep Prometheus + the adapter (needed by
+# the HPA) while shedding the UI and tracing pods.
+ADDONS: dict[str, tuple[str, list[str] | None]] = {
+    "argocd": ("argocd", None),
+    "observability": ("observability", None),
+    "metrics": (
+        "observability",
+        [
+            "prometheus-prom-prometheus",
+            "prom-operator",
+            "kube-prometheus-stack-kube-state-metrics",
+            "prometheus-adapter",
+        ],
+    ),
+    "grafana": ("observability", ["kube-prometheus-stack-grafana"]),
+    "tracing": ("observability", ["jaeger", "opentelemetry-collector"]),
 }
 
 # Operators/controllers restore replica counts themselves, so resume scales
@@ -35,7 +48,7 @@ class ScaleAddon(Step):
         super().__init__()
         self._run = run
         self.addon, self.resume = addon, resume
-        self.namespace = ADDONS[addon]
+        self.namespace, self.only = ADDONS[addon]
 
     def run(self, ctx: Context) -> str | None:
         proc = self._run(
@@ -52,6 +65,8 @@ class ScaleAddon(Step):
         for item in items:
             kind = item["kind"].lower()
             name = item["metadata"]["name"]
+            if self.only is not None and name not in self.only:
+                continue
             current = int(item["spec"].get("replicas") or 0)
             annotations = item["metadata"].get("annotations") or {}
             if self.resume:
