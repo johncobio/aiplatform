@@ -1,6 +1,7 @@
 """llama.cpp backend: CPU inference from a GGUF file via llama-cpp-python."""
 
 import logging
+import time
 from pathlib import Path
 
 from llm_service.backends.base import Generation
@@ -35,8 +36,15 @@ class LlamaCppBackend:
             n_ctx=self.settings.context_length,
             n_threads=self.settings.threads,
             n_batch=512,
+            use_mlock=self.settings.mlock,
             verbose=False,
         )
+        if self.settings.warmup:
+            t0 = time.monotonic()
+            self._llm.create_chat_completion(
+                messages=[{"role": "user", "content": "hi"}], max_tokens=1, temperature=0
+            )
+            log.info("warm-up generation done in %.2fs", time.monotonic() - t0)
 
     def generate(self, messages: list[Message], max_tokens: int, temperature: float) -> Generation:
         if self._llm is None:

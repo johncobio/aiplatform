@@ -86,3 +86,16 @@ def test_parse_memory(raw, expected):
 def test_parse_memory_rejects_invalid(raw):
     with pytest.raises(ValueError):
         parse_memory(raw)
+
+
+def test_autoscaling_metric_and_target():
+    cfg = WorkloadConfig.model_validate({**VALID, "autoscaling": {"min": 1, "max": 3}})
+    assert cfg.autoscaling.metric == "queue" and cfg.autoscaling.effective_target == 2.0
+    cfg = WorkloadConfig.model_validate(
+        {**VALID, "autoscaling": {"min": 1, "max": 3, "metric": "cpu", "target": 60}}
+    )
+    assert cfg.autoscaling.effective_target == 60
+    with pytest.raises(ValidationError):
+        WorkloadConfig.model_validate(
+            {**VALID, "autoscaling": {"min": 1, "max": 3, "metric": "gpu"}}
+        )

@@ -15,6 +15,7 @@ def test_up_skips_create_when_cluster_exists(runner, monkeypatch):
         "argo-cd",
         "kube-prometheus-stack",
         "opentelemetry-collector",
+        "prometheus-adapter",
     ]
     versions = [c[c.index("--version") + 1] for c in runner.find("helm")]
     assert versions == [
@@ -23,6 +24,7 @@ def test_up_skips_create_when_cluster_exists(runner, monkeypatch):
         cluster.ARGOCD_CHART,
         cluster.KUBE_PROMETHEUS_STACK_CHART,
         cluster.OTEL_COLLECTOR_CHART,
+        cluster.PROMETHEUS_ADAPTER_CHART,
     ]
 
 

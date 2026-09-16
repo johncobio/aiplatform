@@ -13,13 +13,36 @@ spec:
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
+    {{- if eq .Values.autoscaling.metric "queue" }}
+    # Requests waiting or generating per pod, served by prometheus-adapter from
+    # llm_queue_depth + llm_inflight_requests. Scales on demand, not on CPU noise.
+    - type: Pods
+      pods:
+        metric:
+          name: llm_pending_requests
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.autoscaling.target | quote }}
+    {{- else }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+          averageUtilization: {{ .Values.autoscaling.target }}
+    {{- end }}
   behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 30
     scaleDown:
-      stabilizationWindowSeconds: 120
+      # Model load costs ~15 s per pod; do not flap on short lulls.
+      stabilizationWindowSeconds: {{ .Values.autoscaling.scaleDownStabilizationSeconds }}
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
 {{- end }}

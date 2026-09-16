@@ -20,6 +20,8 @@ context: .                     # Docker build context (must contain a Dockerfile
 autoscaling:
   min: 1
   max: 3
+  metric: queue                # queue = pending requests per pod | cpu = utilisation %
+  target: 2
 env: {{}}
 """
 

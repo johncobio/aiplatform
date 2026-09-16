@@ -36,6 +36,10 @@ def ingress_host(cfg: WorkloadConfig) -> str:
     return f"{cfg.name}.{cfg.environment}.{LOCAL_DOMAIN}"
 
 
+def _number(value: float) -> int | float:
+    return int(value) if float(value).is_integer() else value
+
+
 def format_cpu(cores: float) -> str:
     """Kubernetes CPU quantity: whole cores as '2', fractions as millicores '500m'."""
     if cores == int(cores):
@@ -79,6 +83,8 @@ def build_values(cfg: WorkloadConfig, image: str, tag: str) -> dict:
             "enabled": cfg.autoscaling.max > 1,
             "minReplicas": max(1, cfg.autoscaling.min),
             "maxReplicas": cfg.autoscaling.max,
+            "metric": cfg.autoscaling.metric,
+            "target": _number(cfg.autoscaling.effective_target),
         },
         "ingress": {"host": ingress_host(cfg)},
     }

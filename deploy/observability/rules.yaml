@@ -1,0 +1,30 @@
+# Recording rules for the LLM inference signals. Dashboards and (V8) alerts
+# read these instead of recomputing histogram quantiles on every refresh.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aiplatform-llm
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: aiplatform
+spec:
+  groups:
+    - name: aiplatform.llm.recording
+      interval: 30s
+      rules:
+        - record: aiplatform:llm_requests:rate5m
+          expr: sum by (environment, workload, model) (rate(llm_requests_total[5m]))
+        - record: aiplatform:llm_errors:ratio5m
+          expr: >-
+            (sum by (environment, workload) (rate(llm_requests_total{status="error"}[5m])) or vector(0))
+            / clamp_min(sum by (environment, workload) (rate(llm_requests_total[5m])), 1e-9)
+        - record: aiplatform:llm_request_duration_seconds:p50_5m
+          expr: histogram_quantile(0.5, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
+        - record: aiplatform:llm_request_duration_seconds:p95_5m
+          expr: histogram_quantile(0.95, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
+        - record: aiplatform:llm_request_duration_seconds:p99_5m
+          expr: histogram_quantile(0.99, sum by (environment, workload, le) (rate(llm_request_duration_seconds_bucket[5m])))
+        - record: aiplatform:llm_completion_tokens:rate5m
+          expr: sum by (environment, workload, model) (rate(llm_completion_tokens_total[5m]))
+        - record: aiplatform:llm_pending_requests
+          expr: sum by (environment, workload, namespace, pod) (llm_queue_depth + on (namespace, pod) llm_inflight_requests)

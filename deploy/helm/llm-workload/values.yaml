@@ -22,7 +22,8 @@ model:
   threads: 2
 
 # Extra environment variables for the container.
-env: {}
+env:
+  LLM_MLOCK: "true"   # pin the model in RAM; the memory request already budgets for it
 
 resources:
   requests:
@@ -36,7 +37,9 @@ autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 3
-  targetCPUUtilizationPercentage: 70
+  metric: queue          # queue (llm_pending_requests via prometheus-adapter) | cpu
+  target: 2              # avg pending requests per pod (queue) or CPU % (cpu)
+  scaleDownStabilizationSeconds: 120
 
 # Model cache shared by replicas on one node (RWO). See ADR 0005.
 persistence:

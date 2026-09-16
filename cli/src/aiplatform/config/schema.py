@@ -19,6 +19,21 @@ class Autoscaling(BaseModel):
 
     min: int = Field(1, ge=0, le=100)
     max: int = Field(1, ge=1, le=100)
+    metric: Literal["queue", "cpu"] = Field(
+        "queue",
+        description="queue = pending requests per pod (prometheus-adapter); cpu = utilisation %",
+    )
+    target: float | None = Field(
+        None,
+        gt=0,
+        description="Per-pod target: pending requests (queue, default 2) or CPU % (cpu, 70)",
+    )
+
+    @property
+    def effective_target(self) -> float:
+        if self.target is not None:
+            return self.target
+        return 2.0 if self.metric == "queue" else 70.0
 
     @model_validator(mode="after")
     def _min_le_max(self) -> "Autoscaling":

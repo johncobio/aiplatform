@@ -24,6 +24,8 @@ KUBE_PROMETHEUS_STACK_CHART = "91.4.1"  # Prometheus Operator v0.94.0
 KUBE_PROMETHEUS_STACK_REPO = "https://prometheus-community.github.io/helm-charts"
 OTEL_COLLECTOR_CHART = "0.173.1"  # collector 0.160.0
 OTEL_COLLECTOR_REPO = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+PROMETHEUS_ADAPTER_CHART = "5.3.0"  # adapter v0.12.0
+PROMETHEUS_ADAPTER_REPO = "https://prometheus-community.github.io/helm-charts"
 OBSERVABILITY_NAMESPACE = "observability"
 
 
@@ -204,6 +206,13 @@ def up_steps(run: shell.Runner = shell.run) -> list[Step]:
             OTEL_COLLECTOR_CHART,
             OBSERVABILITY_NAMESPACE,
         ),  # fmt: skip
+        InstallAddon(
+            run,
+            "prometheus-adapter",
+            PROMETHEUS_ADAPTER_REPO,
+            PROMETHEUS_ADAPTER_CHART,
+            OBSERVABILITY_NAMESPACE,
+        ),
         ApplyObservabilityConfig(run),
     ]
 

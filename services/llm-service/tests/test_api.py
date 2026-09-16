@@ -87,3 +87,10 @@ def test_readyz_503_while_loading_and_on_failure():
         assert "no weights" in r.json()["error"]
         r = c.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "hi"}]})
         assert r.status_code == 503
+
+
+def test_settings_expose_mlock_and_warmup(monkeypatch):
+    monkeypatch.setenv("LLM_MLOCK", "true")
+    monkeypatch.setenv("LLM_WARMUP", "false")
+    s = Settings()
+    assert s.mlock is True and s.warmup is False

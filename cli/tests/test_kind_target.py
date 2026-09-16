@@ -58,7 +58,19 @@ def test_build_values_enables_hpa_when_max_gt_1(config):
         update={"autoscaling": config.autoscaling.model_copy(update={"max": 4})}
     )
     v = build_values(cfg, "img:t", "t")
-    assert v["autoscaling"] == {"enabled": True, "minReplicas": 1, "maxReplicas": 4}
+    assert v["autoscaling"] == {
+        "enabled": True,
+        "minReplicas": 1,
+        "maxReplicas": 4,
+        "metric": "queue",
+        "target": 2,
+    }
+
+
+def test_build_values_cpu_autoscaling_defaults_to_70(config):
+    asc = config.autoscaling.model_copy(update={"max": 3, "metric": "cpu"})
+    v = build_values(config.model_copy(update={"autoscaling": asc}), "img:t", "t")
+    assert v["autoscaling"]["metric"] == "cpu" and v["autoscaling"]["target"] == 70
 
 
 def test_deploy_pipeline_builds_loads_and_upgrades(config, tmp_path, kind_runner):

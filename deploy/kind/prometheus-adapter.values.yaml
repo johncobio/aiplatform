@@ -1,0 +1,34 @@
+# prometheus-adapter: serves custom.metrics.k8s.io from Prometheus so HPAs can
+# scale on inference signals instead of CPU.
+prometheus:
+  url: http://prom-prometheus.observability.svc
+  port: 9090
+replicas: 1
+resources:
+  requests: { cpu: 25m, memory: 48Mi }
+  limits: { memory: 160Mi }
+rules:
+  default: false
+  custom:
+    # Requests waiting for a slot plus requests generating, per pod.
+    - seriesQuery: 'llm_queue_depth{namespace!="",pod!=""}'
+      resources:
+        overrides:
+          namespace: { resource: namespace }
+          pod: { resource: pod }
+      name:
+        matches: "^llm_queue_depth$"
+        as: "llm_pending_requests"
+      metricsQuery: >-
+        sum(llm_queue_depth{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+        + sum(llm_inflight_requests{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+    # Also expose the raw signals for debugging with `kubectl get --raw`.
+    - seriesQuery: 'llm_queue_depth{namespace!="",pod!=""}'
+      resources:
+        overrides:
+          namespace: { resource: namespace }
+          pod: { resource: pod }
+      name:
+        matches: "^(.*)$"
+        as: "${1}"
+      metricsQuery: sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)

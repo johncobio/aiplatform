@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     context_length: int = Field(4096, ge=256, le=131072)
     threads: int = Field(default_factory=lambda: max(1, os.cpu_count() or 1), ge=1)
     max_concurrency: int = Field(1, ge=1, description="Parallel generations; llama.cpp wants 1")
+    mlock: bool = Field(
+        False, description="Pin model pages in RAM so idle periods do not evict them"
+    )
+    warmup: bool = Field(
+        True, description="Run one short generation after load so the first request is not cold"
+    )
     max_tokens_limit: int = Field(1024, ge=1, description="Upper bound a client may request")
     default_max_tokens: int = Field(256, ge=1)
     log_level: str = "INFO"

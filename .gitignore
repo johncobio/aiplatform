@@ -36,3 +36,6 @@ tfplan
 .DS_Store
 .idea/
 .vscode/
+
+# k6 raw results (curated numbers go to docs/benchmarks)
+loadtest/results/*.json
