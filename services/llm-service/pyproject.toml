@@ -1,0 +1,40 @@
+[project]
+name = "llm-service"
+version = "0.1.0"
+description = "OpenAI-compatible inference service with Prometheus metrics (sample aiplatform workload)"
+requires-python = ">=3.12"
+dependencies = [
+  # ASGI web framework with request validation via Pydantic.
+  "fastapi>=0.115",
+  # Production ASGI server.
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  # Typed, validated configuration from environment variables (12-factor).
+  "pydantic-settings>=2.6",
+  # Official Prometheus exposition client.
+  "prometheus-client>=0.21",
+]
+
+[project.optional-dependencies]
+# Real CPU inference backend; compiled from source in the Docker image only.
+llamacpp = ["llama-cpp-python>=0.3.9"]
+dev = ["pytest>=8.3", "httpx>=0.27", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_service"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

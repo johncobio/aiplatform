@@ -1,0 +1,30 @@
+#!/bin/bash
+# Cloud-init for the aiplatform single-instance host (Amazon Linux 2023, arm64).
+set -euo pipefail
+exec > >(tee /var/log/aiplatform-user-data.log | logger -t user-data) 2>&1
+
+dnf install -y docker
+systemctl enable --now docker
+
+# Model cache survives container restarts and image upgrades.
+mkdir -p /var/lib/aiplatform/models
+chown 10001:10001 /var/lib/aiplatform/models
+
+aws ecr get-login-password --region ${region} \
+  | docker login --username AWS --password-stdin "$(echo ${image} | cut -d/ -f1)"
+
+docker pull "${image}"
+docker rm -f aiplatform-service 2>/dev/null || true
+docker run --detach \
+  --name aiplatform-service \
+  --restart unless-stopped \
+  --memory ${memory_mb}m \
+  -p ${container_port}:${container_port} \
+  -v /var/lib/aiplatform/models:/models \
+  -e PORT=${container_port} \
+%{ for k, v in env ~}
+  -e ${k}='${v}' \
+%{ endfor ~}
+  "${image}"
+
+echo "aiplatform: container started"

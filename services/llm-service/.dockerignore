@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+tests/
+models/
+*.gguf
+.aiplatform/
+.pytest_cache/
+.ruff_cache/
