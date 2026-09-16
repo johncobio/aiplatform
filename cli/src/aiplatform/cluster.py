@@ -20,6 +20,11 @@ METRICS_SERVER_CHART = "3.14.0"
 METRICS_SERVER_REPO = "https://kubernetes-sigs.github.io/metrics-server/"
 ARGOCD_CHART = "10.9.1"  # Argo CD v3.5.3
 ARGOCD_REPO = "https://argoproj.github.io/argo-helm"
+KUBE_PROMETHEUS_STACK_CHART = "91.4.1"  # Prometheus Operator v0.94.0
+KUBE_PROMETHEUS_STACK_REPO = "https://prometheus-community.github.io/helm-charts"
+OTEL_COLLECTOR_CHART = "0.173.1"  # collector 0.160.0
+OTEL_COLLECTOR_REPO = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+OBSERVABILITY_NAMESPACE = "observability"
 
 
 def cluster_exists(run: shell.Runner) -> bool:
@@ -120,6 +125,44 @@ class ApplyGitOpsConfig(Step):
         return "deploy/argocd"
 
 
+class ApplyObservabilityConfig(Step):
+    """Jaeger, plus Grafana dashboards shipped as labelled ConfigMaps."""
+
+    name = "Observability config applied"
+
+    def __init__(self, run: shell.Runner) -> None:
+        super().__init__()
+        self._run = run
+
+    def run(self, ctx: Context) -> str | None:
+        base = paths.repo_root() / "deploy" / "observability"
+        kubectl = ["kubectl", "--context", KUBE_CONTEXT]
+        for manifest in sorted(base.glob("*.yaml")):
+            self._run([*kubectl, "apply", "-f", str(manifest)])
+        dashboards = sorted((base / "dashboards").glob("*.json"))
+        for dash in dashboards:
+            name = f"dashboard-{dash.stem}"
+            render = self._run(
+                [
+                    *kubectl,
+                    "-n",
+                    OBSERVABILITY_NAMESPACE,
+                    "create",
+                    "configmap",
+                    name,
+                    f"--from-file={dash.name}={dash}",
+                    "--dry-run=client",
+                    "-o",
+                    "yaml",
+                ]  # fmt: skip
+            )
+            labelled = render.stdout.replace(
+                "metadata:\n", 'metadata:\n  labels:\n    grafana_dashboard: "1"\n', 1
+            )
+            self._run([*kubectl, "apply", "-f", "-"], input=labelled)
+        return f"jaeger + {len(dashboards)} dashboard(s)"
+
+
 class DeleteCluster(Step):
     name = "kind cluster deleted"
 
@@ -147,6 +190,21 @@ def up_steps(run: shell.Runner = shell.run) -> list[Step]:
         ),
         InstallAddon(run, "argo-cd", ARGOCD_REPO, ARGOCD_CHART, "argocd"),
         ApplyGitOpsConfig(run),
+        InstallAddon(
+            run,
+            "kube-prometheus-stack",
+            KUBE_PROMETHEUS_STACK_REPO,
+            KUBE_PROMETHEUS_STACK_CHART,
+            OBSERVABILITY_NAMESPACE,
+        ),  # fmt: skip
+        InstallAddon(
+            run,
+            "opentelemetry-collector",
+            OTEL_COLLECTOR_REPO,
+            OTEL_COLLECTOR_CHART,
+            OBSERVABILITY_NAMESPACE,
+        ),  # fmt: skip
+        ApplyObservabilityConfig(run),
     ]
 
 

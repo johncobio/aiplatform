@@ -56,6 +56,14 @@ spec:
               value: {{ .Values.model.contextLength | quote }}
             - name: LLM_THREADS
               value: {{ .Values.model.threads | quote }}
+            {{- if .Values.otel.endpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otel.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ include "llm-workload.fullname" . }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment={{ .Values.environment }},aiplatform.model={{ .Values.model.name }}"
+            {{- end }}
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}

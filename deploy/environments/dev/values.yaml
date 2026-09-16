@@ -4,3 +4,7 @@ ingress:
   className: nginx
 persistence:
   storageClass: standard   # kind's local-path provisioner
+serviceMonitor:
+  enabled: true
+otel:
+  endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4318

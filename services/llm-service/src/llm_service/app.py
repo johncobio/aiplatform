@@ -23,14 +23,19 @@ from llm_service.schemas import (
     Usage,
 )
 from llm_service.settings import Settings
+from llm_service.tracing import configure_tracing, current_trace_id, instrument_app
 
 log = logging.getLogger("llm_service")
 access_log = logging.getLogger("llm_service.access")
 
 
-def create_app(settings: Settings | None = None, backend: Backend | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, backend: Backend | None = None, tracing: bool = True
+) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings.log_level, settings.log_format)
+    if tracing:
+        configure_tracing()
     engine = InferenceEngine(backend or build_backend(settings), settings.max_concurrency)
 
     @asynccontextmanager
@@ -48,6 +53,7 @@ def create_app(settings: Settings | None = None, backend: Backend | None = None)
     app = FastAPI(title="llm-service", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.engine = engine
+    instrument_app(app)
 
     @app.middleware("http")
     async def request_logging(request: Request, call_next):
@@ -67,6 +73,7 @@ def create_app(settings: Settings | None = None, backend: Backend | None = None)
                     "path": request.url.path,
                     "status": response.status_code,
                     "duration_ms": duration_ms,
+                    "trace_id": current_trace_id(),
                 },
             )
         return response

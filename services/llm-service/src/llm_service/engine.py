@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from llm_service import metrics
 from llm_service.backends.base import Backend, Generation
 from llm_service.schemas import Message
+from llm_service.tracing import tracer
 
 log = logging.getLogger(__name__)
 
@@ -87,23 +88,35 @@ class InferenceEngine:
         queued_at = time.monotonic()
         metrics.QUEUE_DEPTH.inc()
         acquired = False
+        queue_span = tracer.start_span("llm.queue_wait")
         try:
             async with self._slots:
                 acquired = True
                 waited = time.monotonic() - queued_at
+                queue_span.set_attribute("llm.queue_wait_seconds", waited)
+                queue_span.end()
                 metrics.QUEUE_DEPTH.dec()
                 metrics.QUEUE_WAIT.observe(waited)
                 metrics.INFLIGHT.inc()
                 t0 = time.monotonic()
                 try:
-                    gen = await run_in_threadpool(
-                        self.backend.generate, messages, max_tokens, temperature
-                    )
+                    with tracer.start_as_current_span("llm.generate") as span:
+                        span.set_attribute("gen_ai.system", type(self.backend).__name__)
+                        span.set_attribute("gen_ai.request.model", self.backend.model_name)
+                        span.set_attribute("gen_ai.request.max_tokens", max_tokens)
+                        span.set_attribute("gen_ai.request.temperature", temperature)
+                        gen = await run_in_threadpool(
+                            self.backend.generate, messages, max_tokens, temperature
+                        )
+                        span.set_attribute("gen_ai.usage.input_tokens", gen.prompt_tokens)
+                        span.set_attribute("gen_ai.usage.output_tokens", gen.completion_tokens)
+                        span.set_attribute("gen_ai.response.finish_reasons", [gen.finish_reason])
                 finally:
                     metrics.INFLIGHT.dec()
                 gen_seconds = time.monotonic() - t0
         except BaseException:
             if not acquired:  # cancelled while queued: undo the queue count
+                queue_span.end()
                 metrics.QUEUE_DEPTH.dec()
             raise
 

@@ -13,6 +13,11 @@ dependencies = [
   "pydantic-settings>=2.6",
   # Official Prometheus exposition client.
   "prometheus-client>=0.21",
+  # OpenTelemetry tracing: API + SDK, OTLP over HTTP (no grpcio), FastAPI auto-instrumentation.
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp-proto-http>=1.27",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
 ]
 
 [project.optional-dependencies]

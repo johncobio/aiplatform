@@ -65,6 +65,15 @@ probes:
   readinessPeriodSeconds: 10
   livenessPeriodSeconds: 20
 
+# Prometheus Operator ServiceMonitor (requires the CRD; enabled per environment).
+serviceMonitor:
+  enabled: false
+  interval: 15s
+
+# OpenTelemetry: when set, the service exports OTLP traces over HTTP to this endpoint.
+otel:
+  endpoint: ""      # e.g. http://opentelemetry-collector.observability:4318
+
 podAnnotations:
   prometheus.io/scrape: "true"
   prometheus.io/port: "8000"

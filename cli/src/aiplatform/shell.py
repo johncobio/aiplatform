@@ -19,6 +19,7 @@ def run(
     capture: bool = True,
     cwd: str | None = None,
     env: dict[str, str] | None = None,
+    input: str | None = None,
 ) -> subprocess.CompletedProcess:
     """Execute `cmd`. Raises CommandError on non-zero exit when `check` is set."""
     log.debug("$ %s", " ".join(cmd))
@@ -29,6 +30,7 @@ def run(
         text=True,
         capture_output=capture,
         check=False,
+        input=input,
     )
     if capture and proc.stdout:
         log.debug("stdout: %s", proc.stdout.strip()[-2000:])

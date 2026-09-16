@@ -42,5 +42,16 @@ def status() -> None:
             return
         shell.run(["kubectl", "--context", KUBE_CONTEXT, "get", "nodes"], capture=False)
         shell.run(["helm", "--kube-context", KUBE_CONTEXT, "list", "-A"], capture=False)
+        console.print("\nPlatform UIs (kind):")
+        for name, url in (
+            ("Argo CD", "http://argocd.127.0.0.1.nip.io"),
+            (
+                "Grafana",
+                "http://grafana.127.0.0.1.nip.io (anonymous viewer; admin/prom-operator)",
+            ),
+            ("Prometheus", "http://prometheus.127.0.0.1.nip.io"),
+            ("Jaeger", "http://jaeger.127.0.0.1.nip.io"),
+        ):
+            console.print(f"  {name:<11} {url}")
     except AiPlatformError as e:
         fail(e)

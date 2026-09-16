@@ -1,0 +1,89 @@
+# kube-prometheus-stack sized for a single-node kind cluster on a 4 GB Docker VM.
+# Alertmanager and node-exporter are enabled in V8; control-plane scrape targets
+# that kind binds to localhost are disabled to avoid permanently-down targets.
+fullnameOverride: prom
+
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  create: true
+  rules:
+    alertmanager: false
+    etcd: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeControllerManager: false
+    nodeExporterAlerting: false
+    nodeExporterRecording: false
+    windows: false
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts: [prometheus.127.0.0.1.nip.io]
+    paths: ["/"]
+    pathType: Prefix
+  prometheusSpec:
+    retention: 2d
+    retentionSize: 1GB
+    scrapeInterval: 15s
+    evaluationInterval: 30s
+    # Pick up every ServiceMonitor/PodMonitor/PrometheusRule in the cluster, not only the chart's.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 100m, memory: 300Mi }
+      limits: { memory: 700Mi }
+
+grafana:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts: [grafana.127.0.0.1.nip.io]
+    path: /
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer   # local convenience; admin login still required to edit
+    analytics:
+      check_for_updates: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  resources:
+    requests: { cpu: 25m, memory: 96Mi }
+    limits: { memory: 256Mi }
