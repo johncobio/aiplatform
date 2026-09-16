@@ -1,0 +1,7 @@
+# Policy inputs shared by the OPA rules and the cost estimator.
+limits:
+  monthly_budget_usd: 100          # default budget for proposals (override: aiplatform propose --budget)
+  max_replicas: 10
+  max_memory_gi_per_replica: 16
+  # Graviton general-purpose/compute families up to "large"; GPU and x86 need an explicit exception.
+  allowed_instance_type_regex: "^(t4g|c7g|m7g|c6g|m6g)\\.(nano|micro|small|medium|large)$"

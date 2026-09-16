@@ -22,6 +22,11 @@ Context = dict[str, Any]
 class StepStatus(StrEnum):
     OK = "ok"
     FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class StepSkipped(Exception):  # noqa: N818 - a control signal, not an error
+    """Raised by a step to report that it does not apply (with a reason)."""
 
 
 class Step(ABC):
@@ -76,17 +81,27 @@ class Pipeline:
             log.debug("step %s: start", step.name)
             try:
                 detail = step.run(ctx)
+            except StepSkipped as e:
+                seconds = time.monotonic() - t0
+                log.debug("step %s: skipped: %s", step.name, e)
+                self.reporter.step_finished(step.name, StepStatus.SKIPPED, str(e), seconds)
+                _record(ctx, step.name, StepStatus.SKIPPED, str(e))
+                continue
             except AiPlatformError as e:
+                _record(ctx, step.name, StepStatus.FAILED, str(e))
                 return self._fail(step, str(e), t0, started)
             except Exception as e:  # noqa: BLE001 - a step must never crash the CLI
                 log.debug("step %s: unexpected error", step.name, exc_info=True)
+                _record(ctx, step.name, StepStatus.FAILED, f"{type(e).__name__}: {e}")
                 return self._fail(step, f"{type(e).__name__}: {e}", t0, started)
             seconds = time.monotonic() - t0
             log.debug("step %s: ok in %.2fs", step.name, seconds)
             self.reporter.step_finished(step.name, StepStatus.OK, detail, seconds)
+            _record(ctx, step.name, StepStatus.OK, detail)
         return PipelineResult(succeeded=True, total_seconds=time.monotonic() - started)
 
     def _fail(self, step: Step, error: str, t0: float, started: float) -> PipelineResult:
+
         seconds = time.monotonic() - t0
         log.debug("step %s: failed in %.2fs: %s", step.name, seconds, error)
         self.reporter.step_finished(step.name, StepStatus.FAILED, error, seconds)
@@ -96,3 +111,10 @@ class Pipeline:
             error=error,
             total_seconds=time.monotonic() - started,
         )
+
+
+def _record(ctx: Context, name: str, status: StepStatus, detail: str | None) -> None:
+    """Append to ctx["report"] so commands can render a summary (e.g. a PR body)."""
+    ctx.setdefault("report", []).append(
+        {"step": name, "status": str(status), "detail": detail or ""}
+    )

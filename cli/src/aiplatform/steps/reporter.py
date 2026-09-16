@@ -17,7 +17,9 @@ class ConsoleReporter:
         self, name: str, status: StepStatus, detail: str | None, seconds: float
     ) -> None:
         timing = f" [dim]({seconds:.1f}s)[/dim]" if self.show_timing else ""
-        if status is StepStatus.OK:
+        if status is StepStatus.SKIPPED:
+            self.console.print(f"[dim]○ {name} skipped: {detail}[/dim]{timing}", highlight=False)
+        elif status is StepStatus.OK:
             extra = f" [dim]{detail}[/dim]" if detail else ""
             self.console.print(f"[green]✓[/green] {name}{extra}{timing}")
         else:

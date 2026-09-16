@@ -34,3 +34,9 @@ class TargetError(AiPlatformError):
     """A deployment target cannot satisfy the request."""
 
     exit_code = 4
+
+
+class AgentError(AiPlatformError):
+    """The proposal provider could not produce a usable proposal."""
+
+    exit_code = 5

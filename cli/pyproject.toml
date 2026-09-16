@@ -14,6 +14,8 @@ dependencies = [
   "pyyaml>=6.0",
   # User-facing terminal output (checklists, tables, colours).
   "rich>=13.9",
+  # Claude Messages API for `aiplatform propose` (structured proposals).
+  "anthropic>=0.69",
 ]
 
 [project.scripts]

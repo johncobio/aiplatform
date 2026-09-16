@@ -9,9 +9,11 @@ from aiplatform.commands import (
     cluster,
     deploy,
     destroy,
+    guard,
     init,
     logs,
     models,
+    propose,
     rollback,
     status,
     validate,
@@ -53,6 +55,8 @@ app.command()(logs.logs)
 app.command()(rollback.rollback)
 app.command()(destroy.destroy)
 app.command()(models.models)
+app.command()(propose.propose)
+app.command()(guard.guard)
 app.add_typer(cluster.app, name="cluster")
 
 if __name__ == "__main__":

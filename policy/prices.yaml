@@ -1,0 +1,23 @@
+# On-demand us-east-1 list prices used for ESTIMATES only (checked 2026-09-16).
+# Nothing here is a bill. Update deliberately; the estimator prints its inputs.
+hourly_usd:
+  instance:
+    t4g.nano: 0.0042
+    t4g.micro: 0.0084
+    t4g.small: 0.0168
+    t4g.medium: 0.0336
+    t4g.large: 0.0672
+    t4g.xlarge: 0.1344
+    c7g.large: 0.0725
+    c7g.xlarge: 0.145
+    m7g.large: 0.0816
+    m7g.xlarge: 0.1632
+    g5.xlarge: 1.006
+    g6.xlarge: 0.8048
+  eks_cluster: 0.10
+  nat_gateway: 0.045
+  alb: 0.0225
+# Kubernetes workloads are estimated by memory share of a Graviton node:
+# t4g.medium (4 GiB) at 0.0336/h -> 0.0084 per GiB-hour.
+per_gib_hour_usd: 0.0084
+hours_per_month: 730

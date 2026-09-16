@@ -64,6 +64,21 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: make helm-lint
 
+  policy:
+    name: OPA policies (Conftest)
+    runs-on: ubuntu-24.04
+    env:
+      CONFTEST_VERSION: "0.70.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Install conftest
+        run: |
+          curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin conftest
+          conftest --version
+      - run: make policy
+
   dockerfile:
     name: Dockerfile lint
     runs-on: ubuntu-24.04

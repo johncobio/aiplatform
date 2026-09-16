@@ -6,7 +6,7 @@ CLI      := cli
 SERVICE  := services/llm-service
 TF_DIRS  := $(shell find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
 
-.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard loadtest
+.PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard loadtest policy guard
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -15,7 +15,7 @@ setup: ## Install dev dependencies for the CLI and the service
 	cd $(CLI) && uv sync --extra dev
 	cd $(SERVICE) && uv sync --extra dev
 
-check: lint test tf-validate helm-lint ## Everything CI runs
+check: lint test tf-validate helm-lint policy ## Everything CI runs
 
 lint: ## Ruff lint + format check
 	cd $(CLI) && uv run ruff check . && uv run ruff format --check .
@@ -42,6 +42,13 @@ tf-validate: tf-fmt ## terraform init -backend=false && validate for every root/
 	  echo "== $$d"; \
 	  (cd $$d && terraform init -backend=false -input=false >/dev/null && terraform validate) || exit 1; \
 	done
+
+policy: ## OPA/Conftest policies for Terraform and the rendered chart (what `aiplatform propose` enforces)
+	conftest test --parser hcl2 -p policy/terraform -d policy/data -n terraform $$(find infra/terraform -name '*.tf' -not -path '*/.terraform/*')
+	helm template ci deploy/helm/llm-workload --set image.tag=ci --set ingress.host=ci.local --set autoscaling.enabled=true -f deploy/environments/dev/values.yaml | conftest test -p policy/kubernetes -d policy/data -n kubernetes -
+
+guard: ## Run the proposal guardrails on the working tree (terraform, checkov, OPA, cost)
+	cd $(CLI) && uv run aiplatform guard --all
 
 helm-lint: ## Lint and render the workload chart
 	helm lint deploy/helm/llm-workload --set image.tag=ci --set ingress.host=ci.local --strict
