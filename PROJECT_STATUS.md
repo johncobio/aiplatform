@@ -4,8 +4,8 @@ _Last updated: 2026-09-16_
 
 ## Current phase
 
-**V6 complete (inference engines).** Next: V7 AI-proposed infrastructure
-changes with guardrails and human approval. AWS is deliberately last (ADR 0005).
+**V7 complete (proposal agent with guardrails).** Next: V8 reliability
+(SLOs, alerting, chaos, runbooks). AWS is deliberately last (ADR 0005).
 
 ## Completed
 
@@ -93,6 +93,22 @@ changes with guardrails and human approval. AWS is deliberately last (ADR 0005).
   for the upstream engine, engine comparison load tests.
 - Baseline: `docs/benchmarks/2026-09-16-v6-engines.md`.
 
+### V7 — AI-proposed changes with guardrails
+- `aiplatform propose`: Claude provider (Messages API, structured output,
+  adaptive thinking) or `--from-file`; bounded repo context; proposals
+  applied on a scratch branch from `main`.
+- Guardrails: allowed paths, config validation, terraform fmt/validate/plan,
+  Checkov, OPA/Conftest (13 rules: security + cost for Terraform, workload
+  rules for Kubernetes), cost estimate vs budget from a price table; skipped
+  steps carry reasons; report becomes the PR body.
+- `aiplatform guard` + `make policy` in CI apply the same rules to humans.
+- Verified: PR #1 opened by the pipeline; GPU/NAT proposals rejected by
+  Checkov and OPA respectively; the Kubernetes policy found a real gap in the
+  chart (init container without resources), since fixed.
+- No Anthropic credentials on the laptop: the Claude provider is covered by
+  unit tests with a fake client, not a live call. ADR 0010.
+- Baseline: `docs/benchmarks/2026-09-16-v7-guardrails.md`.
+
 ## Current architecture
 
 See `docs/ARCHITECTURE.md`. CLI → step pipeline → target (`local` Docker, `kind`
@@ -152,9 +168,10 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **V7 AI infrastructure agent with guardrails:** `aiplatform propose "<request>"`
-   generates Terraform/config changes → fmt → validate → plan → Checkov →
-   OPA/Conftest → cost estimate → PR for human approval → Argo CD.
-2. **V8 reliability:** SLOs on the `aiplatform:*` contract, Alertmanager,
-   chaos experiments, runbooks.
+1. **V8 reliability:** SLOs on the `aiplatform:*` contract (availability,
+   latency, error budget), Alertmanager + alert rules, chaos experiments
+   (pod kill, node pressure, dependency loss), incident runbooks, measured
+   recovery times.
+2. Run `aiplatform propose` with real Anthropic credentials and record the
+   first model-generated PR.
 3. Housekeeping: pin GitHub Actions to SHAs; split image dependency layer.

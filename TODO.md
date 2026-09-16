@@ -70,9 +70,13 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 
 ## V7 — AI infrastructure agent with guardrails
 
-- [ ] `aiplatform propose "<request>"` → generated Terraform/config diff
-- [ ] Pipeline: fmt → validate → plan → checkov → conftest/OPA → cost estimate → human approval → PR
-- [ ] OPA policies: required tags, no public S3, instance type allowlist, cost caps
+- [x] `aiplatform propose "<request>"` → structured proposal (Claude or JSON file)
+- [x] Pipeline: allowed paths → config validation → fmt → validate → plan → Checkov → OPA → helm render + OPA → cost estimate → PR
+- [x] OPA policies: no 0.0.0.0/0, IMDSv2, encrypted volumes, S3 public access block, immutable ECR, instance-type allowlist, no NAT; Kubernetes resources/non-root/no latest/replica and memory caps/no LoadBalancer
+- [x] `aiplatform guard` and `make policy` in CI
+- [ ] Live run with Anthropic credentials; record token usage and quality of the first model proposal
+- [ ] Terraform `plan` on PRs once the AWS state bucket exists (AWS section)
+- [ ] Replace the price table with Infracost or the AWS Pricing API
 
 ## AWS (deferred until the local platform is complete)
 

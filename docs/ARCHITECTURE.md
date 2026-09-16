@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: V6 (engines: builtin, llama.cpp server, vLLM contract; GitOps; observability; queue-based HPA; k6; AWS Terraform written, not applied)._
+_Status: V7 (proposal agent with guardrails; engines; GitOps; observability; autoscaling; AWS Terraform written, not applied)._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -57,6 +57,13 @@ flowchart LR
     end
     met -.scrape.-> prom
     api -.OTLP traces.-> otel
+
+    subgraph Agent["aiplatform propose"]
+        req[natural-language request] --> llm[Claude proposal]
+        llm --> guard[guardrails: terraform · Checkov · OPA · cost]
+        guard --> pr[pull request → human merge]
+    end
+    pr -.desired state.-> gitops
 
     cfg --> cli --> v1 --> v2 --> b --> d --> h
     d --> local
@@ -193,6 +200,19 @@ need no image build: `services/qwen-server` is a one-file workload.
 - k6 scenarios (`make loadtest SCENARIO=steady VUS=2`) drive the staging
   endpoint; `loadtest/report.py` joins k6 client metrics with server-side
   Prometheus maxima for `docs/benchmarks/`.
+
+### Proposal agent (`cli/src/aiplatform/agent/`, `policy/`)
+
+`aiplatform propose` (ADR 0010): a provider (Claude via the Messages API with
+a structured `Proposal` schema, or a JSON file) returns full-file changes;
+the CLI applies them on a scratch worktree branched from `main` and runs the
+guardrail steps (allowed paths → config validation → terraform fmt/validate/
+plan → Checkov → OPA Terraform → helm render + OPA Kubernetes → cost estimate
+vs budget). Skips are reported with reasons. A passing run pushes the branch
+and opens a pull request whose body is the report; a human merges; Argo CD
+deploys. `aiplatform guard` runs the same steps on a working tree, and CI
+runs `make policy`. Policies live in `policy/terraform`, `policy/kubernetes`
+with limits and list prices in `policy/data` and `policy/prices.yaml`.
 
 ### Infrastructure (`infra/terraform/`)
 

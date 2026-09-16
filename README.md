@@ -43,7 +43,7 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V6 complete locally; AWS deliberately deferred.** Working today:
+**V7 complete locally; AWS deliberately deferred.** Working today:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
@@ -68,6 +68,12 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
   (`services/qwen-server`); vLLM renders with GPU resources for the AWS phase.
   Recording rules normalise every engine's metrics so dashboards and the HPA
   never change.
+- **AI-proposed changes with guardrails**: `aiplatform propose "<request>"`
+  turns a request into file changes (Claude, or a JSON plan), applies them on a
+  scratch branch, runs terraform fmt/validate/plan, Checkov, OPA policies for
+  Terraform and rendered Kubernetes manifests and a cost estimate against a
+  budget, then opens a pull request for human approval. `aiplatform guard`
+  runs the same checks on any working tree; CI runs the policies on every push.
 - `llm-service`: OpenAI-compatible inference API serving Qwen2.5-0.5B-Instruct
   on CPU with llama.cpp, plus Prometheus metrics (latency, tokens/s, queue
   depth, model load time).
@@ -121,6 +127,20 @@ make loadtest SCENARIO=steady VUS=2 DURATION=2m
 make loadtest SCENARIO=step STEP_DURATION=2m       # 1 → 2 → 4 VUs; watch the HPA
 kubectl -n aiplatform-staging get hpa -w
 ```
+
+### AI proposals with guardrails
+
+```
+export ANTHROPIC_API_KEY=...                                  # or `ant auth login`
+uv run --project cli aiplatform propose "Deploy document-agent with high availability under $100/month"
+uv run --project cli aiplatform propose "..." --from-file plan.json --dry-run   # no model, no PR
+uv run --project cli aiplatform guard                          # guardrails on your own changes
+make policy                                                    # OPA suites only
+```
+
+Nothing is applied by the agent: a passing proposal becomes a pull request
+(example: [#1](https://github.com/johncobio/aiplatform/pull/1)); merging it is
+the approval, and Argo CD deploys merged desired state.
 
 ### Observability UIs (after `make cluster-up`)
 
@@ -183,7 +203,7 @@ component descriptions, and [`docs/adr/`](docs/adr/) for decisions.
 | V4 | Prometheus, Grafana, OpenTelemetry traces, Jaeger, inference dashboard (done) |
 | V5 | k6 load tests, HPA on pending requests, benchmarks (done) |
 | V6 | Engine abstraction: builtin, llama.cpp server (runs locally), vLLM contract (GPU, AWS phase) (done) |
-| V7 | AI-proposed infrastructure changes with validation, policy, cost and human approval gates |
+| V7 | AI-proposed changes: Claude/JSON proposals → terraform/Checkov/OPA/cost guardrails → PR approval (done) |
 | V8 | SLOs, alerting, chaos testing, runbooks |
 | AWS | Terraform apply: state bucket, VPC, ECR, EKS; same chart and GitOps flow on a real cluster |
 
