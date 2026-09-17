@@ -1,0 +1,15 @@
+{
+  "summary": "Deploy document-agent with high availability under $100/month",
+  "rationale": "Serve qwen2.5-0.5b-instruct with the upstream llama.cpp engine (no build) in staging, minimum 2 replicas for availability and a cap of 3 replicas scaled on pending requests. At 1 GiB per replica the estimate is 3 x 1 GiB x $0.0084/GiB-h x 730 h = $18.40/month, well under the $100 budget together with the existing workloads.",
+  "files": [
+    {
+      "path": "services/document-agent/aiplatform.yaml",
+      "action": "write",
+      "content": "# Proposed by aiplatform propose: HA document agent on the upstream llama.cpp engine.\nname: document-agent\nmodel: qwen2.5-0.5b-instruct\nengine: llamacpp-server\ncpu: 1\nmemory: 1Gi\nenvironment: staging\nport: 8000\nautoscaling:\n  min: 2\n  max: 3\n  metric: queue\n  target: 2\nenv: {}\n"
+    }
+  ],
+  "risks": [
+    "Two replicas need 2 GiB of node memory; on the kind laptop pause other add-ons first",
+    "Deploy with `aiplatform deploy --dir services/document-agent --target gitops` after merge"
+  ]
+}
