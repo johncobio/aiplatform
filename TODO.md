@@ -10,7 +10,7 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [x] Prepare report, editable architecture slides and a timed demo walkthrough
 - [x] Inspect Academy sandbox restrictions and open the correct EC2 console
 - [ ] Confirm group number and final-project deadline in Canvas
-- [ ] Recheck remote CI after pushing the repair
+- [x] Recheck remote CI after pushing the repair (`111610a`, all seven jobs passed)
 - [ ] Verify a fresh inference response; record and share the 5–10 minute demo
 - [ ] Approve cost/access for an Academy-compatible EC2 demo, deploy and verify
 - [ ] Capture cloud evidence and destroy all project demo resources

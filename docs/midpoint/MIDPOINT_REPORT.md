@@ -45,10 +45,12 @@ security group and encrypted EBS. EKS remains a later deployment option.
 
 Fresh verification on October 15: `make check` passed **112 CLI tests and 14
 service tests**, formatting/lint, six Terraform roots/modules, chart engine
-checks, and both Conftest suites. The latest remote CI run inspected during
-the audit failed Checkov CKV_AWS_394 because availability-zone discovery was
-unfiltered. The repair pins zone identities; remote CI must be checked after
-the repair is pushed. Local validation alone does not prove a cloud deployment.
+checks, and both Conftest suites. The audit reproduced an earlier remote CI
+failure, Checkov CKV_AWS_394, because availability-zone discovery was unfiltered.
+The repair pins zone identities; all seven jobs passed on `111610a`
+([CI evidence](https://github.com/johncobio/aiplatform/actions/runs/38820810497)).
+The local Checkov scan passed 83 checks. Validation alone does not prove a cloud
+deployment. See [fresh output excerpts](VALIDATION_EVIDENCE.md).
 
 Historical measurements on September 16, documented with configuration and
 commands in `docs/benchmarks/`, include:

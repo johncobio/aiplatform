@@ -17,9 +17,12 @@ proposal have not been verified. AWS remains cost-gated (ADR 0005).
 - Fresh `make check` passed: 112 CLI tests, 14 service tests, six Terraform
   validations, chart checks, 308 Terraform and 80 Kubernetes policy assertions.
   Two upstream test-client deprecation warnings remain non-fatal.
+- Rehearsed the file-provider NAT proposal: OPA rejected it (expected exit 3),
+  with no AWS apply or PR. Excerpts are in `docs/midpoint/VALIDATION_EVIDENCE.md`.
 - Reproduced the latest remote CI failure (Checkov CKV_AWS_394). Added an
   explicit zone-name filter to the network module; the repaired local scan
-  passed 83 checks with zero failures. Remote CI must be rechecked after push.
+  passed 83 checks with zero failures. GitHub CI passed on `111610a`
+  ([run 38820810497](https://github.com/johncobio/aiplatform/actions/runs/38820810497)).
 - Docker was stopped during the audit. Historical runtime results are labelled
   September 16; a fresh inference response is required before recording.
 - Academy Cloud Architecting Sandbox is available with a displayed $20 lab

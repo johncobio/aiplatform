@@ -126,10 +126,10 @@ function pairs(s,items,x,y,w,step=94) {
     ['Deployment checks','Helm render checks for built-in, llama.cpp and vLLM configurations.'],
     ['Security and policy','Conftest suites and image scanning in GitHub Actions.'],
   ],650,194,560,130);
-  text(s,'Fresh local checks pass. Remote CI needs rechecking after the zone-selection repair.',64,615,1130,45,21,C.orange);
+  text(s,'Local checks and all seven CI jobs passed after the zone-selection repair.',64,615,1130,45,21,C.green);
   note(s,'2:35–3:20 (45 seconds)',
-    'The platform has automation beyond the inference endpoint. The fresh audit passed 112 CLI and 14 service tests. Terraform formatting and validation, chart render checks, and policy suites also passed. I found that the most recent remote CI run failed a new Checkov rule because the availability-zone lookup was unfiltered. The repair pins the zone identities and passes the local scan. The lesson is to verify the current pipeline rather than rely on an old green badge. Terraform validation is still distinct from proving a cloud apply.',
-    'October 15 make check: 112 CLI + 14 service tests, six Terraform checks, chart checks and policy checks; Checkov reproduced CKV_AWS_394 then passed 83 checks after explicit zone-name filter. Latest inspected run https://github.com/johncobio/aiplatform/actions/runs/35232704084');
+    'The platform has automation beyond the inference endpoint. The fresh audit passed 112 CLI and 14 service tests. Terraform formatting and validation, chart render checks, and policy suites also passed. The audit reproduced an earlier pipeline failure caused by an unfiltered availability-zone lookup. The repair pins zone identities and passed 83 local Checkov checks. All seven GitHub CI jobs then passed on commit 111610a. The lesson is to verify the current pipeline rather than rely on an old badge. Terraform validation is still distinct from proving a cloud apply.',
+    'October 15 make check: 112 CLI + 14 service tests, six Terraform checks, chart checks and policy checks; Checkov reproduced CKV_AWS_394 then passed 83 checks after explicit zone-name filter. Verified successful CI https://github.com/johncobio/aiplatform/actions/runs/38820810497');
 }
 // 6 — 40 seconds
 {
@@ -189,7 +189,7 @@ const finalPath=path.join(out,`Group${group}-aiplatform.pptx`);
 if(process.env.PRESENTATION_SKILL_DIR){
   const skill=process.env.PRESENTATION_SKILL_DIR;
   const {finalizePresentation}=await import(pathToFileURL(path.join(skill,'container_tools/artifact_tool_utils.mjs')).href);
-  await finalizePresentation({workspaceDir:build,candidatePath:draft,finalPath,
+  await finalizePresentation({workspaceDir:root,candidatePath:draft,finalPath,
     pythonExecutable:process.env.PRESENTATION_PYTHON || 'python3',
     integrityValidatorPath:path.join(skill,'container_tools/inspect_presentation_package_integrity.py'),
     layoutValidatorPath:path.join(skill,'container_tools/inspect_presentation_layout_geometry.py'),
@@ -199,7 +199,7 @@ if(process.env.PRESENTATION_SKILL_DIR){
     // embed an editable workbook snapshot for PowerPoint compatibility.
     materializeLiteralChartWorkbooks:true,
     fontPolicy:{basis:'design',families:[font]},verifyArtifactToolImport:true,
-    receiptPath:path.join(build,'validation.json')});
+    receiptPath:path.join(build,`validation-${Date.now()}.json`)});
 }else{
   await fs.copyFile(draft,finalPath);
 }

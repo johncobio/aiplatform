@@ -14,6 +14,7 @@ The group number and final-project deadline still need confirmation in Canvas.
    link in a signed-out browser. Submit the video URL on Canvas yourself.
 3. **Repository:** https://github.com/johncobio/aiplatform
 4. **Short report:** [MIDPOINT_REPORT.md](MIDPOINT_REPORT.md).
+5. **Fresh validation logs:** [VALIDATION_EVIDENCE.md](VALIDATION_EVIDENCE.md).
 
 The supplied assignment asks for a working prototype or partial deployment.
 It does not explicitly require EKS or every proposed cloud service at midpoint.

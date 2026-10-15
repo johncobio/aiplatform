@@ -12,6 +12,9 @@ build/
 # aiplatform local state
 .aiplatform/
 
+# Private intermediate workbook snapshots from presentation validation
+.chart-data-*/
+
 # Models (never commit weights)
 *.gguf
 models/
