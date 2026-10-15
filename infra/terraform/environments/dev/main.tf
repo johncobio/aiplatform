@@ -17,8 +17,9 @@ locals {
 module "network" {
   source = "../../modules/network"
 
-  name = local.name
-  cidr = "10.10.0.0/16"
+  name                    = local.name
+  cidr                    = "10.10.0.0/16"
+  availability_zone_names = ["${var.region}a", "${var.region}b"]
   public_subnet_cidrs = [
     "10.10.0.0/20",
     "10.10.16.0/20",

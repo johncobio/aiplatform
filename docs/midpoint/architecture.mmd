@@ -1,0 +1,30 @@
+flowchart TB
+  subgraph current[Implemented prototype — local Kubernetes plus hosted CI]
+    developer[Developer + workload YAML] --> cli[aiplatform CLI]
+    cli --> helm[Helm on local kind]
+    cli --> git[Git desired state]
+    git --> argo[Argo CD on kind]
+    argo --> pods[Inference pods]
+    helm --> pods
+    github[GitHub Actions] --> checks[Tests + Terraform validation + policies]
+    github --> ghcr[GHCR image registry]
+    ghcr --> pods
+    ingress[ingress-nginx] --> pods
+    pods --> cache[PVC model cache]
+    pods --> metrics[Prometheus + Grafana]
+    pods --> traces[OTel Collector + Jaeger]
+  end
+  subgraph midpoint[Proposed AWS midpoint footprint — deployment pending]
+    client[Operator IP] --> sg[Restricted security group]
+    sg --> ec2[EC2 inference container in public subnet]
+    ec2 --> ebs[Encrypted EBS model cache]
+    ghcr -. image pull .-> ec2
+    igw[Internet gateway + route table] --- ec2
+  end
+  subgraph later[Later AWS target — not deployed]
+    eks[EKS workers + Argo CD + observability]
+    ecr[ECR images] --> eks
+    s3[S3 Terraform state]
+    alb[ALB ingress] --> eks
+    gpu[Optional GPU inference nodes] --- eks
+  end

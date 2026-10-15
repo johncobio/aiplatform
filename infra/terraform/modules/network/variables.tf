@@ -20,6 +20,17 @@ variable "public_subnet_cidrs" {
   }
 }
 
+variable "availability_zone_names" {
+  description = "Explicit zone allowlist, in the same region as the provider; prevents discovery drift"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b"]
+
+  validation {
+    condition     = length(distinct(var.availability_zone_names)) >= length(var.public_subnet_cidrs)
+    error_message = "Provide one distinct allowed availability zone per public subnet."
+  }
+}
+
 variable "tags" {
   description = "Tags applied to every resource"
   type        = map(string)

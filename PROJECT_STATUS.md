@@ -1,12 +1,34 @@
 # Project Status
 
-_Last updated: 2026-09-16_
+_Last updated: 2026-10-15_
 
 ## Current phase
 
-**V8 complete (reliability). All eight local phases are done.** What
-remains is the AWS phase: applying the Terraform, an EKS node group, the same
-GitOps and observability on a real cluster, and vLLM on GPU nodes (ADR 0005).
+**Local prototype implemented through V8; cloud deployment remains pending.**
+The local reliability experiments are recorded, but this is not a production
+readiness claim. GPU inference and a live model-generated infrastructure
+proposal have not been verified. AWS remains cost-gated (ADR 0005).
+
+### Midpoint audit — October 15
+
+- Submission package: `docs/midpoint/` contains the five-minute presentation,
+  report, architecture source, recording walkthrough and cloud setup checklist.
+  Group number, recording and final submission remain with the owner.
+- Fresh `make check` passed: 112 CLI tests, 14 service tests, six Terraform
+  validations, chart checks, 308 Terraform and 80 Kubernetes policy assertions.
+  Two upstream test-client deprecation warnings remain non-fatal.
+- Reproduced the latest remote CI failure (Checkov CKV_AWS_394). Added an
+  explicit zone-name filter to the network module; the repaired local scan
+  passed 83 checks with zero failures. Remote CI must be rechecked after push.
+- Docker was stopped during the audit. Historical runtime results are labelled
+  September 16; a fresh inference response is required before recording.
+- Academy Cloud Architecting Sandbox is available with a displayed $20 lab
+  budget. Its instructions allow t2/t3 EC2 and gp2 volumes, restrict IAM to
+  read-only, and do not list ECR/EKS. Do not apply the existing Graviton/gp3
+  environment unchanged. No project AWS resources have been created.
+- The Academy browser-terminal IAM probe used a runner role and was denied;
+  it did not establish usable sandbox CLI authentication. Console federation
+  works. Do not assume the browser terminal has the sandbox's credentials.
 
 ## Completed
 
@@ -184,13 +206,18 @@ Real measurements only, in `docs/benchmarks/`:
 
 ## Next priorities
 
-1. **AWS phase (cost-gated):** bootstrap the state bucket; apply `dev` with
-   `enable_compute=false` (≈ $0); `eks` module with a small Graviton node
-   group (≈ $73/mo control plane + nodes); ECR as the registry; Argo CD and
-   the observability stack on EKS; ingress via the AWS Load Balancer
-   Controller; then a GPU node group for vLLM (spot, cost-gated).
-2. Black-box probe outside the cluster for the ingress blind spot.
-3. Run `aiplatform propose` with real Anthropic credentials and record the
+1. **Midpoint:** confirm group number, verify one live model response, record
+   the walkthrough and submit the deck/repository/video links. Keep cloud
+   plans separate from deployed components in the presentation.
+2. **First cloud demo (cost-gated):** prepare an Academy-compatible EC2 plan,
+   approve its cost and restricted access, verify inference, then tear down.
+   See `docs/midpoint/CLOUD_SETUP.md`; do not launch EKS for the midpoint.
+3. **Later AWS phase:** select an account that permits the required services,
+   then implement EKS, registry/auth, state and multi-node model distribution.
+   EKS control-plane cost alone is approximately $73/month at $0.10/hour;
+   workers, storage, public IPv4 and load balancing are additional costs.
+4. Black-box probe outside the cluster for the ingress blind spot.
+5. Run `aiplatform propose` with real Anthropic credentials and record the
    first model-generated PR.
-4. Housekeeping: pin GitHub Actions to SHAs; split the image dependency
+6. Housekeeping: pin GitHub Actions to SHAs; split the image dependency
    layer; native llama.cpp build for the builtin engine.

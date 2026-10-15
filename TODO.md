@@ -3,6 +3,19 @@
 Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 "Completed" when done. Keep this honest: if something is dropped, say why.
 
+## Midpoint submission — October 2026
+
+- [x] Audit tests, Terraform, chart and policy checks with fresh output
+- [x] Repair Checkov availability-zone selection failure without suppressing it
+- [x] Prepare report, editable architecture slides and a timed demo walkthrough
+- [x] Inspect Academy sandbox restrictions and open the correct EC2 console
+- [ ] Confirm group number and final-project deadline in Canvas
+- [ ] Recheck remote CI after pushing the repair
+- [ ] Verify a fresh inference response; record and share the 5–10 minute demo
+- [ ] Approve cost/access for an Academy-compatible EC2 demo, deploy and verify
+- [ ] Capture cloud evidence and destroy all project demo resources
+- [ ] Submit the renamed PPTX, accessible repository and video links
+
 ## V1 — Local end-to-end + minimal AWS
 
 - [x] CLI skeleton (`init`, `validate`, `deploy`, `status`, `logs`, `rollback`, `destroy`)

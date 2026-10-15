@@ -4,6 +4,11 @@
 
 data "aws_availability_zones" "available" {
   state = "available"
+
+  filter {
+    name   = "zone-name"
+    values = var.availability_zone_names
+  }
 }
 
 resource "aws_vpc" "this" {

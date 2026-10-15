@@ -43,7 +43,10 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**V8 complete locally; AWS deliberately deferred.** Working today:
+**Local prototype implemented through V8; AWS deployment pending.** GPU serving
+and live model-generated proposals still need verification. For the October
+midpoint audit, presentation and demo checklist, see [the submission package](docs/midpoint/README.md).
+The runtime must be started and rechecked before a live demo. Implemented:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
   `destroy`, `models`, `cluster up|down|status`, against two targets:
