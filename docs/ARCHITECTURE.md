@@ -1,6 +1,7 @@
 # Architecture
 
-_Status: V8 (all local phases complete: engines, GitOps, observability, autoscaling, proposal guardrails, SLOs/alerts/chaos; AWS Terraform written, not applied)._
+_Status: local prototype through V8; Academy EC2 demo configuration prepared,
+deployment pending verification. EKS/GPU remain unverified._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -80,6 +81,28 @@ flowchart LR
 ```
 
 ## Components
+
+### Academy midpoint footprint (ADR 0012)
+
+`infra/terraform/environments/academy` is an isolated, cost-gated Terraform
+root. Authenticated CloudShell saves a plan and local state; it reads the lab's
+existing VPC/subnets and creates one t3.small, encrypted gp2 root volume and
+restricted security group/rules. The operator's IPv4 /32 reaches TCP 8000;
+there is no SSH or instance role. Public image/model downloads need no AWS
+credentials on the host. Startup logs go to EC2 console output. A two-hour
+OS shutdown terminates the host, but Terraform destroy is still required to
+remove the group/rules. This does not modify the local CLI deployment targets.
+
+```mermaid
+flowchart LR
+  operator[Operator IPv4 /32] --> sg[Security group: TCP 8000 only]
+  sg --> vm[Existing public subnet: t3.small]
+  ghcr[Public GHCR image: digest pinned] --> vm
+  hf[Model revision + SHA256] --> vm
+  vm --> disk[20 GiB encrypted gp2: delete on termination]
+  shell[Authenticated CloudShell] --> tf[Saved Terraform plan + private local state]
+  tf --> vm
+```
 
 ### `aiplatform` CLI (`cli/`)
 

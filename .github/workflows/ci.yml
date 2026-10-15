@@ -52,6 +52,8 @@ jobs:
           terraform_wrapper: false
       - name: fmt + validate every root and module
         run: make tf-validate
+      - name: Mocked infrastructure safety tests (no AWS calls)
+        run: make tf-test
       - uses: astral-sh/setup-uv@v6
       - name: Checkov
         run: uvx checkov --config-file .checkov.yaml

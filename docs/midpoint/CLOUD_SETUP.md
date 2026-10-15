@@ -68,4 +68,13 @@ Sources: https://aws.amazon.com/vpc/pricing/ and https://aws.amazon.com/eks/pric
 7. Record the demo, destroy the resources with the same state and inputs, and
    confirm EC2/storage cleanup. Keep state private until cleanup is complete.
 
+## Approved Academy configuration
+
+The owner approved up to $2 of lab credit. The implementation is now in
+[`environments/academy`](../../infra/terraform/environments/academy/README.md)
+(ADR 0012), separate from dev/staging. It uses the existing lab VPC, a
+digest-pinned public image, a revision/hash-pinned Qwen model, no IAM/SSH,
+operator-only API access and two-hour automatic host termination. CloudShell
+authentication works. The real saved plan must be reviewed before apply.
+
 The cloud milestone is **pending**, not yet an observed deployment.

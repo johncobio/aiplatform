@@ -12,7 +12,17 @@ deny contains msg if {
 	is_string(t)
 	not startswith(t, "${")
 	not regex.match(allowed_type_regex, t)
+	not academy_demo_exception(r)
 	msg := sprintf("aws_instance.%s instance_type %q is outside the allowed Graviton sizes", [r.name, t])
+}
+
+# ADR 0012: Academy forbids Graviton. Human-approved exception for exactly
+# one named t3.small demo resource; other x86 sizes/environments stay denied.
+academy_demo_exception(r) if {
+    r.name == "academy_demo"
+    r.body.instance_type == "t3.small"
+    r.body.tags.Environment == "academy"
+    r.body.tags.Project == "aiplatform"
 }
 
 deny contains msg if {

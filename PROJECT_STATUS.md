@@ -11,6 +11,15 @@ proposal have not been verified. AWS remains cost-gated (ADR 0005).
 
 ### Midpoint audit — October 15
 
+- Owner approved a $2 Academy lab-credit allowance. Prepared an isolated
+  t3.small/gp2 Terraform root (ADR 0012), a narrow tested OPA exception,
+  restricted API/no SSH/no IAM, and two-hour automatic host termination.
+  CloudShell authentication works; actual plan/apply and inference remain pending.
+- Academy preflight: `make check` passed 126 Python tests, three mocked
+  Terraform safety plans, four OPA exception unit tests, 364 Terraform and
+  80 Kubernetes policy assertions. ShellCheck passed. Checkov passed 102
+  checks, with one scoped, documented skip for the deliberately role-free host.
+
 - Submission package: `docs/midpoint/` contains the five-minute presentation,
   report, architecture source, recording walkthrough and cloud setup checklist.
   Group number, recording and final submission remain with the owner.
