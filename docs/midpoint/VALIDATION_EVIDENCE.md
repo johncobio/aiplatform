@@ -66,10 +66,18 @@ The extra Checkov check is against the proposed scratch tree, not the base
 repository. This exercise used a JSON fixture, not a live model-generated
 proposal. No AWS apply or pull request was executed.
 
-## Runtime evidence still required
+## Cloud implementation and fresh runtime evidence
 
-Docker was stopped during the audit. Capture one successful health check and
-non-mock chat response before recording. Label its actual host and date; do
-not use the September 16 benchmark results as proof of an October AWS launch.
+The subsequent Academy implementation passed three mocked Terraform safety
+plans, four OPA unit tests, 364 Terraform and 80 Kubernetes policy assertions.
+Checkov passed 102 checks with one documented exception for the role-free host.
+All seven CI jobs passed on `ed73116`:
+https://github.com/johncobio/aiplatform/actions/runs/38822074273
+
+Terraform applied the real four-resource plan, and a non-mock chat request
+returned HTTP 200 on EC2 at 2026-10-16 01:15:18 UTC. See the actual response,
+commands, scope and metrics in the
+[cloud smoke-test record](../benchmarks/2026-10-15-academy-smoke.md).
+Docker remains stopped locally; the verified endpoint is the cloud host.
 
 Historical, command-backed measurements are in `docs/benchmarks/`.

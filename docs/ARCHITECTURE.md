@@ -1,7 +1,7 @@
 # Architecture
 
-_Status: local prototype through V8; Academy EC2 demo configuration prepared,
-deployment pending verification. EKS/GPU remain unverified._
+_Status: local prototype through V8; Academy EC2 inference verified October 15
+locally (October 16 UTC). EKS/GPU remain unverified._
 Update this document and add an ADR whenever the architecture changes.
 
 ## Goal
@@ -92,6 +92,8 @@ there is no SSH or instance role. Public image/model downloads need no AWS
 credentials on the host. Startup logs go to EC2 console output. A two-hour
 OS shutdown terminates the host, but Terraform destroy is still required to
 remove the group/rules. This does not modify the local CLI deployment targets.
+The first cloud smoke test succeeded; see
+[`2026-10-15-academy-smoke.md`](benchmarks/2026-10-15-academy-smoke.md).
 
 ```mermaid
 flowchart LR

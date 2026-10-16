@@ -7,8 +7,8 @@ The group number and final-project deadline still need confirmation in Canvas.
 
 1. **Presentation:** `GroupUNKNOWN-aiplatform.pptx`, approximately five minutes.
    Replace `UNKNOWN` with the actual group number before uploading. Speaker
-   notes contain the narration and timing. The deck labels AWS as planned
-   until a real cloud request is recorded and the deck is regenerated.
+   notes contain the narration and timing. The deck distinguishes the verified
+   EC2 smoke test from historical local Kubernetes benchmarks and future EKS.
 2. **Video:** record the 5–10 minute [walkthrough](DEMO_WALKTHROUGH.md).
    Upload to Drive with reviewer access or YouTube as unlisted. Test the
    link in a signed-out browser. Submit the video URL on Canvas yourself.
@@ -18,12 +18,18 @@ The group number and final-project deadline still need confirmation in Canvas.
 
 The supplied assignment asks for a working prototype or partial deployment.
 It does not explicitly require EKS or every proposed cloud service at midpoint.
-A restricted EC2 deployment is the next cloud milestone, subject to lab access.
+A restricted EC2 deployment now serves the real model. See
+[cloud evidence](../benchmarks/2026-10-15-academy-smoke.md). Cloud EKS, GPU and
+full observability remain later milestones.
 
 ## Before recording
 
 - Confirm your group number and deadline in the course containing this assignment.
 - Complete one successful inference request and save its response.
+- EC2 was verified at 01:15:18 UTC October 16. Its shutdown is scheduled for
+  03:10:03 UTC (10:10 PM CDT October 15); record before then and before lab expiry.
+  Do not assume the endpoint remains live tomorrow. Use a new reviewed plan to
+  recreate it if necessary, and destroy with the original state after recording.
 - Have the architecture slide, workload configuration, and GitHub Actions page open.
 - Run `make check` before recording, rather than waiting for it in the video.
 - Use actual output. Historical benchmark numbers are labelled September 16,

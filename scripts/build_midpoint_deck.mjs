@@ -61,7 +61,7 @@ function pairs(s,items,x,y,w,step=94) {
   text(s,'Midpoint evaluation\nJohn Cobio',68,345,720,105,29,'#D5E7E1');
   text(s,'A workload configuration becomes a running\nopen-source model with operational visibility.',68,505,1040,100,30,'#D5E7E1');
   note(s,'0:00–0:25 (25 seconds)',
-    'My project is aiplatform, a self-service infrastructure platform for open-source model workloads. I am John Cobio. The goal is to give a developer a small configuration file and a repeatable path to deployment, health checks, and operational metrics. Today I will show the implemented prototype, evidence from tests and experiments, and the next cloud milestone.',
+    'My project is aiplatform, a self-service infrastructure platform for open-source model workloads. I am John Cobio. The goal is to give a developer a small configuration file and a repeatable path to deployment, health checks, and operational metrics. Today I will show the local prototype, a verified EC2 model-serving demo, evidence from tests and experiments, and remaining work.',
     'README.md; docs/ARCHITECTURE.md. Group number needs confirmation for the filename.');
 }
 // 2 — 35 seconds
@@ -97,23 +97,23 @@ function pairs(s,items,x,y,w,step=94) {
   text(s,'Prometheus / Grafana metrics',64,616,550,38,24,C.muted);
   text(s,'OpenTelemetry / Jaeger traces',650,616,560,38,24,C.muted);
   note(s,'1:00–1:50 (50 seconds)',
-    'This is the implemented prototype architecture. GitHub Actions runs validation and publishes images to GHCR. Locally, the CLI can deploy directly with Helm or commit desired state for Argo CD to reconcile. Ingress routes requests to an inference pod, which caches model weights on a persistent volume. Prometheus and Grafana expose performance and resource use. The built-in service also exports OpenTelemetry traces to Jaeger. These components have run locally, but Docker is currently stopped on the audit machine, so a live endpoint must be rechecked before the recording.',
+    'This is the local prototype architecture. GitHub Actions runs validation and publishes images to GHCR. The CLI can deploy directly with Helm or commit desired state for Argo CD to reconcile. Ingress routes requests to an inference pod and a persistent volume caches model weights. Prometheus and Grafana expose performance and resource use. The built-in service exports OpenTelemetry traces to Jaeger. These components have run locally. The current live midpoint demo uses the smaller EC2 footprint on the next slide, so the laptop does not need to run the whole cluster during recording.',
     'docs/ARCHITECTURE.md; .github/workflows/ci.yml; .github/workflows/build-image.yml; deploy/helm/llm-workload/; prototype runtime evidence in docs/benchmarks/2026-09-16-v4-observability-baseline.md.');
 }
 // 4 — 45 seconds
 {
-  const s=base('AWS midpoint deployment plan',4);
-  text(s,'PLANNED — awaiting launch and inference verification',64,165,1140,38,24,C.orange,true);
-  const operator=block(s,'Operator IP','Restricted inbound access',64,280,256,108,C.amber);
-  const vm=block(s,'EC2 in a public subnet','Permitted t3 instance + Docker',390,280,385,108,C.amber);
-  const disk=block(s,'Encrypted EBS','gp2 model cache',884,280,330,108,C.amber);
-  connect(s,operator,vm,'right','left',true);connect(s,vm,disk,'right','left',true);
-  text(s,'VPC, route table and internet gateway',390,428,700,42,27,C.ink,true);
-  text(s,'Public image pull from GHCR\nExisting permitted IAM profile if available',390,489,820,84,25,C.muted);
+  const s=base('Verified AWS midpoint deployment',4);
+  text(s,'Qwen model response and native metrics verified on EC2',64,165,1140,38,24,C.green,true);
+  const operator=block(s,'Operator IP','/32 access on TCP 8000',64,280,256,108);
+  const vm=block(s,'EC2: t3.small + Docker','1 GiB container, 2 CPU limit',390,280,385,108);
+  const disk=block(s,'Encrypted EBS','20 GiB gp2 model cache',884,280,330,108);
+  connect(s,operator,vm);connect(s,vm,disk);
+  text(s,'Existing VPC, subnet, route and internet gateway',390,428,820,42,27,C.ink,true);
+  text(s,'Real inference: HTTP 200, 34 output tokens\nOne request: 2.30 s client time. Model load: 7.66 s.',390,489,820,84,25,C.muted);
   text(s,'EKS, ECR, S3 state and GPU nodes remain later milestones',64,612,1135,40,24,C.orange,true);
   note(s,'1:50–2:35 (45 seconds)',
-    'The next cloud milestone is deliberately small: an EC2 instance serving a real model, in a public subnet, with a security group limited to my IP and encrypted EBS for the cache. The inspected Academy sandbox restricts IAM to read-only, supports t2 and t3 instances, and requires gp2 storage. ECR and EKS are not listed among its supported services, so the first cloud demo would pull the existing public image from GHCR. This slide shows a plan, not a completed deployment. I will replace that status only after a successful cloud inference request.',
-    'Academy Cloud Architecting 3 Sandbox instructions viewed October 15, 2026; docs/midpoint/CLOUD_SETUP.md. Pricing reference https://aws.amazon.com/vpc/pricing/ and https://aws.amazon.com/eks/pricing/.');
+    'The cloud milestone now runs a real Qwen model on one EC2 instance. Terraform applied a reviewed plan with four creates and no changes to existing lab resources. It reuses the lab network and restricts port 8000 to my IP. The instance has encrypted gp2 storage, standard CPU credits, no SSH and no IAM role. It pulls a digest-pinned public image and verifies the model checksum. One real request returned HTTP 200 with 34 output tokens in 2.304 seconds of client time. That is a smoke test, not a P95 benchmark. The host schedules termination after two hours, and Terraform destroy removes the remaining security group.',
+    'docs/benchmarks/2026-10-15-academy-smoke.md: verified 2026-10-16 01:15:18 UTC (October 15 locally). infra/terraform/environments/academy; ADR 0012. No EKS/ECR/GPU deployment is claimed.');
 }
 // 5 — 45 seconds
 {
@@ -122,14 +122,14 @@ function pairs(s,items,x,y,w,step=94) {
   text(s,'Python tests passed in the October 15 audit',64,315,470,100,30,C.ink);
   text(s,'112 CLI tests + 14 service tests',64,445,520,45,25,C.muted);
   pairs(s,[
-    ['Infrastructure checks','Terraform formatting and validation across six roots/modules.'],
+    ['Infrastructure checks','Seven Terraform roots/modules and three mocked safety plans.'],
     ['Deployment checks','Helm render checks for built-in, llama.cpp and vLLM configurations.'],
     ['Security and policy','Conftest suites and image scanning in GitHub Actions.'],
   ],650,194,560,130);
   text(s,'Local checks and all seven CI jobs passed after the zone-selection repair.',64,615,1130,45,21,C.green);
   note(s,'2:35–3:20 (45 seconds)',
-    'The platform has automation beyond the inference endpoint. The fresh audit passed 112 CLI and 14 service tests. Terraform formatting and validation, chart render checks, and policy suites also passed. The audit reproduced an earlier pipeline failure caused by an unfiltered availability-zone lookup. The repair pins zone identities and passed 83 local Checkov checks. All seven GitHub CI jobs then passed on commit 111610a. The lesson is to verify the current pipeline rather than rely on an old badge. Terraform validation is still distinct from proving a cloud apply.',
-    'October 15 make check: 112 CLI + 14 service tests, six Terraform checks, chart checks and policy checks; Checkov reproduced CKV_AWS_394 then passed 83 checks after explicit zone-name filter. Verified successful CI https://github.com/johncobio/aiplatform/actions/runs/38820810497');
+    'The fresh audit passed 112 CLI and 14 service tests. Seven Terraform roots and modules validate. Three mocked Terraform plans test the Academy constraints, and four OPA unit tests check its narrow instance-type exception. Chart checks and both policy suites passed. Checkov passed 102 checks with one documented exception for the intentionally role-free host. All seven CI jobs passed on ed73116. Earlier in the audit, a real scanner failure led to an explicit availability-zone filter rather than a global suppression. Validation, a cloud apply, and model readiness are separate checks.',
+    'make check: 112 CLI + 14 service tests, seven Terraform validations, three mocked plans, four OPA unit tests, 364 Terraform and 80 Kubernetes policy assertions. Checkov: 102 passed, 0 failed, 1 scoped skip. CI https://github.com/johncobio/aiplatform/actions/runs/38822074273');
 }
 // 6 — 40 seconds
 {
@@ -158,13 +158,13 @@ function pairs(s,items,x,y,w,step=94) {
   text(s,'Response and next milestone',610,180,600,40,29,C.green,true);
   const rows=[
     ['Laptop memory and CPU pressure','One workload at a time, pre-pulled images, paused add-ons.'],
-    ['Academy service and IAM restrictions','Verify a small EC2 deployment before attempting EKS.'],
+    ['Academy service and IAM restrictions','Verified EC2 first. EKS needs a permitted account and budget.'],
     ['Ingress monitoring blind spot','Add an external probe and retest recovery in AWS.'],
     ['Unverified advanced paths','Test GPU serving and a live proposal provider after midpoint.'],
   ];
   rows.forEach(([a,b],i)=>{ text(s,a,64,250+i*82,480,68,25);text(s,b,610,250+i*82,600,68,24,C.muted); });
   note(s,'4:00–4:35 (35 seconds)',
-    'The main challenge has been resource pressure on an eight-gigabyte laptop, so the demo uses one workload and pauses unused add-ons. Academy permissions are another constraint, which is why EC2 is the immediate cloud milestone. The reliability work found an ingress blind spot that needs an external probe. EKS, GPU inference, and the live proposal provider remain unverified. After feedback I will prioritise cloud automation and repeat the load and recovery measurements in the selected account. The final deadline still needs confirmation.',
+    'The main challenge has been resource pressure on an eight-gigabyte laptop, which led to using one local workload and pausing unused add-ons. The live recording can now use EC2 instead. Academy permissions shaped that smaller cloud footprint. The reliability work found an ingress blind spot that needs an external probe. EKS, GPU inference, and the live proposal provider remain unverified. After feedback I will extend cloud automation and repeat load and recovery measurements. The current EC2 demo is temporary and must be destroyed after recording. The final deadline still needs confirmation.',
     'PROJECT_STATUS.md; docs/RELIABILITY.md; docs/benchmarks/2026-09-16-v8-reliability.md; Academy Sandbox instructions.');
 }
 // 8 — 25 seconds

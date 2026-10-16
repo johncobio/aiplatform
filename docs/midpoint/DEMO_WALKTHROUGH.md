@@ -9,6 +9,9 @@ recording, Zoom, or another recorder. Turn off notifications.
 1. Run `make check`. Keep its successful output available.
 2. Select **one** inference endpoint. Prefer the EC2 endpoint once verified.
    Otherwise use the local qwen-server already deployed to kind, if healthy.
+   EC2 has now been verified; retrieve its current output from the original
+   CloudShell checkout. It auto-terminates at 03:10:03 UTC October 16 (10:10 PM
+   CDT October 15). Record before this cutoff or recreate from a new plan.
 3. Verify `/health` for upstream llama.cpp, or `/readyz` for the built-in
    service. Do not run `make cluster-up` just before presenting: it starts all
    add-ons and can exhaust this laptop. Do not compile the model image on camera.
@@ -32,7 +35,7 @@ uv run --project cli aiplatform validate --dir services/qwen-server
 uv run --project cli aiplatform models
 ```
 
-Show the architecture slide. Explain the **current prototype**, proposed
+Show the architecture slide. Explain the **local prototype**, verified
 midpoint EC2 footprint, and later EKS design separately. Only call AWS components
 deployed after checking the console and a successful request from the instance.
 
@@ -61,7 +64,7 @@ the engineering demo demonstrates deployment and operation, not model quality.
 
 ```bash
 curl --fail --max-time 10 "$DEMO_ENDPOINT/metrics" \
-  | rg '^(llamacpp:|llm_)' | head -20
+  | rg '^(llm_requests_total|llm_completion_tokens_total|llm_model_load_seconds|llm_queue_depth|llm_inflight_requests|llm_model_info|process_resident_memory_bytes)'
 ```
 
 Show native token counters and processing/queue metrics. If Grafana is already

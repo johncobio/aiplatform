@@ -22,6 +22,7 @@ control on AWS is a hard requirement, not a preference.
 | `services/llm-service/` | Sample AI workload: OpenAI-compatible inference API with Prometheus metrics. |
 | `infra/terraform/modules/` | Reusable Terraform modules (`network`, `ecr`, `ec2-service`, later `eks`). |
 | `infra/terraform/environments/` | Per-environment root modules (`dev`, `staging`). |
+| `infra/terraform/environments/academy/` | Isolated, IP-restricted t3.small midpoint demo; ADR 0012. |
 | `infra/terraform/bootstrap/` | One-time remote state bucket. |
 | `deploy/helm/llm-workload/` | Helm chart: the deployment contract for every target (kind now, EKS later). |
 | `deploy/environments/<env>/values.yaml` | Per-environment chart overrides. |
@@ -76,6 +77,8 @@ make cluster-up   # kind cluster + ingress-nginx + metrics-server
 make run-kind     # aiplatform deploy --target kind (Helm)
 make run-gitops   # aiplatform deploy --target gitops --env staging (Argo CD)
 make policy       # OPA suites; make guard runs the full proposal guardrails on the tree
+make plan-academy # AWS read-only saved plan; sandbox auth + operator /32 required
+make destroy-academy # AWS deletion: original CloudShell state only, after recording
 ```
 
 Deployment targets: `local` (Docker), `kind` (Helm on kind, use for `dev`) and `gitops` (commit + Argo CD, use for `staging`). Add new
@@ -88,9 +91,21 @@ V1 local Docker → V2 Kubernetes on kind + Helm → V3 GitHub Actions + Argo CD
 V5 load testing + autoscaling → V6 vLLM → V7 AI infra agent with guardrails → V8 SLOs/chaos/runbooks.
 AWS (Terraform: VPC, ECR, EKS) is deliberately last; the AWS modules are written and validated but
 not applied until the owner says so (see ADR 0005).
+Exception: the owner approved a single $2 Academy demo on October 15 (ADR 0012).
+The EC2 smoke test is verified; consult `PROJECT_STATUS.md` for current runtime
+and pending teardown. This is not ongoing permission to create new resources.
 See `TODO.md` for the backlog and `PROJECT_STATUS.md` for where we are.
 
 ## Hard-won facts
+
+- Academy: use the AWS console's authenticated CloudShell, not the external
+  Vocareum terminal's runner credentials. IAM is read-only; no EKS/ECR assumed.
+  Use the isolated t3.small/gp2 root, not dev/staging's Graviton/IAM/gp3 modules.
+  The original state and saved cleanup plan are in CloudShell's
+  `aiplatform-midpoint` checkout. Never attempt cleanup from empty local state.
+  Host shutdown terminates compute/root storage after two hours; the security
+  group/rules still require Terraform destroy. Never cancel the safety timer
+  or expand access/instance size without a new explicit decision.
 
 - Docker Desktop must stay at 4 GB on this laptop; 5 GB made macOS swap and
   the kind control plane crash-looped. Run one LLM workload at a time on kind.

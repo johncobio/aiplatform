@@ -4,7 +4,7 @@ _Last updated: 2026-10-15_
 
 ## Current phase
 
-**Local prototype implemented through V8; cloud deployment remains pending.**
+**Local prototype through V8; first Academy EC2 inference demo verified.**
 The local reliability experiments are recorded, but this is not a production
 readiness claim. GPU inference and a live model-generated infrastructure
 proposal have not been verified. AWS remains cost-gated (ADR 0005).
@@ -14,11 +14,27 @@ proposal have not been verified. AWS remains cost-gated (ADR 0005).
 - Owner approved a $2 Academy lab-credit allowance. Prepared an isolated
   t3.small/gp2 Terraform root (ADR 0012), a narrow tested OPA exception,
   restricted API/no SSH/no IAM, and two-hour automatic host termination.
-  CloudShell authentication works; actual plan/apply and inference remain pending.
+  CloudShell authentication, the real plan/apply and inference are verified below.
 - Academy preflight: `make check` passed 126 Python tests, three mocked
   Terraform safety plans, four OPA exception unit tests, 364 Terraform and
   80 Kubernetes policy assertions. ShellCheck passed. Checkov passed 102
   checks, with one scoped, documented skip for the deliberately role-free host.
+- The reviewed Academy plan was applied: **4 added, 0 changed, 0 destroyed**.
+  A real Qwen chat request returned HTTP 200 at **2026-10-16 01:15:18 UTC**
+  (October 15 locally): 34 completion tokens, 2.304 s client time. Native
+  metrics show the llama.cpp backend, model load 7.657 s and zero queued/in-flight
+  requests afterward. This is one smoke test, not a P95 or capacity benchmark.
+- The bootstrap console verified the model checksum and logged readiness at
+  01:13:55 UTC. Its OS shutdown is scheduled for **03:10:03 UTC on October 16**
+  (10:10:03 PM CDT October 15), with EC2 terminate-on-shutdown enabled.
+  The instance and group remain allocated for recording; teardown is pending.
+  State/plan remain private in CloudShell's `aiplatform-midpoint` checkout.
+  Use `make destroy-academy` from that checkout, not a fresh empty state.
+  Evidence: `docs/benchmarks/2026-10-15-academy-smoke.md`.
+- Prepared private `cleanup.tfplan` in the original CloudShell root and
+  reviewed its scope: **0 creates, 0 changes, 4 destroys**. It has not been
+  applied. Academy session was refreshed for recording; host shutdown remains
+  unchanged at 03:10:03 UTC.
 
 - Submission package: `docs/midpoint/` contains the five-minute presentation,
   report, architecture source, recording walkthrough and cloud setup checklist.
@@ -37,7 +53,8 @@ proposal have not been verified. AWS remains cost-gated (ADR 0005).
 - Academy Cloud Architecting Sandbox is available with a displayed $20 lab
   budget. Its instructions allow t2/t3 EC2 and gp2 volumes, restrict IAM to
   read-only, and do not list ECR/EKS. Do not apply the existing Graviton/gp3
-  environment unchanged. No project AWS resources have been created.
+  environment unchanged. The isolated Academy root is the only project AWS
+  deployment; no EKS, ECR, NAT or load balancer was created.
 - The Academy browser-terminal IAM probe used a runner role and was denied;
   it did not establish usable sandbox CLI authentication. Console federation
   works. Do not assume the browser terminal has the sandbox's credentials.
@@ -222,7 +239,8 @@ Real measurements only, in `docs/benchmarks/`:
    the walkthrough and submit the deck/repository/video links. Keep cloud
    plans separate from deployed components in the presentation.
 2. **First cloud demo (cost-gated):** prepare an Academy-compatible EC2 plan,
-   approve its cost and restricted access, verify inference, then tear down.
+   apply and inference are now verified. Record while the instance is available,
+   then destroy with its original state and verify volume/group cleanup.
    See `docs/midpoint/CLOUD_SETUP.md`; do not launch EKS for the midpoint.
 3. **Later AWS phase:** select an account that permits the required services,
    then implement EKS, registry/auth, state and multi-node model distribution.

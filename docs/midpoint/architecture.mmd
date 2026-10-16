@@ -14,7 +14,7 @@ flowchart TB
     pods --> metrics[Prometheus + Grafana]
     pods --> traces[OTel Collector + Jaeger]
   end
-  subgraph midpoint[Proposed AWS midpoint footprint — deployment pending]
+  subgraph midpoint[Verified AWS midpoint footprint — temporary EC2 demo]
     client[Operator IP] --> sg[Restricted security group]
     sg --> ec2[EC2 inference container in public subnet]
     ec2 --> ebs[Encrypted EBS model cache]

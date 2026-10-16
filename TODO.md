@@ -13,7 +13,7 @@ Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 - [x] Recheck remote CI after pushing the repair (`111610a`, all seven jobs passed)
 - [ ] Verify a fresh inference response; record and share the 5–10 minute demo
 - [x] Approve $2 lab-credit budget; prepare isolated Academy EC2 root and teardown
-- [ ] Review real saved Academy plan, apply, verify inference and capture evidence
+- [x] Review real saved Academy plan, apply, verify inference and capture evidence
 - [ ] Capture cloud evidence and destroy all project demo resources
 - [ ] Submit the renamed PPTX, accessible repository and video links
 

@@ -34,23 +34,34 @@ exports OpenTelemetry traces to a collector and Jaeger. Policies and example
 proposals demonstrate a review gate before infrastructure changes.
 
 See [architecture.mmd](architecture.mmd) and the presentation for diagrams.
-**The Kubernetes prototype has run locally. AWS Terraform exists, but no AWS
-deployment has been verified in this midpoint audit.** The Academy Sandbox
+**Kubernetes has run locally; a real EC2 inference request is now verified.**
+The Academy Sandbox
 instructions allow t2/t3 instances through medium size, gp2 disks up to 35 GB,
-and read-only IAM. EKS/ECR are not listed as supported services. The proposed
-midpoint cloud footprint is therefore one EC2 inference host with a restricted
-security group and encrypted EBS. EKS remains a later deployment option.
+and read-only IAM. EKS/ECR are not listed as supported services. The verified
+midpoint cloud footprint is one t3.small inference host with a restricted
+security group and encrypted 20 GiB gp2 root. A saved Terraform plan created
+four resources without changing existing lab resources. The host needs no
+instance role or SSH. EKS remains a later deployment option.
 
 ## Verification and progress
 
 Fresh verification on October 15: `make check` passed **112 CLI tests and 14
-service tests**, formatting/lint, six Terraform roots/modules, chart engine
+service tests**, formatting/lint, seven Terraform roots/modules, chart engine
 checks, and both Conftest suites. The audit reproduced an earlier remote CI
 failure, Checkov CKV_AWS_394, because availability-zone discovery was unfiltered.
-The repair pins zone identities; all seven jobs passed on `111610a`
-([CI evidence](https://github.com/johncobio/aiplatform/actions/runs/38820810497)).
-The local Checkov scan passed 83 checks. Validation alone does not prove a cloud
-deployment. See [fresh output excerpts](VALIDATION_EVIDENCE.md).
+The repair pins zone identities. With the Academy root added, all seven CI
+jobs passed on `ed73116`
+([CI evidence](https://github.com/johncobio/aiplatform/actions/runs/38822074273)).
+Checkov passed 102 checks with one documented role-free-host exception. Three
+mocked Terraform plans and four OPA unit tests verify the Academy constraints.
+See [fresh output excerpts](VALIDATION_EVIDENCE.md).
+
+The cloud request at **2026-10-16 01:15:18 UTC** returned HTTP 200 with 34 output
+tokens in 2.304 seconds of client-observed time. `/readyz`, `/v1/models`, model
+identity and native Prometheus metrics were also verified. Model loading took
+7.657 seconds, excluding downloads and container setup. This is a single smoke
+test, not a percentile or capacity benchmark.
+[Commands, actual response and metrics](../benchmarks/2026-10-15-academy-smoke.md).
 
 Historical measurements on September 16, documented with configuration and
 commands in `docs/benchmarks/`, include:
@@ -79,14 +90,16 @@ configuration differ. SLO definitions are targets, not demonstrated 30-day uptim
 
 ## Remaining work and execution plan
 
-**Before midpoint submission:** verify permitted cloud access, deploy a small
-EC2 host if authorised, record an actual API response and teardown procedure,
-finalise the group-number filename, rehearse the talk, and submit the video URL.
-The local inference demo is the fallback if the lab blocks cloud deployment.
+**Before midpoint submission:** record the verified EC2 demo, finalise the
+group-number filename, rehearse the talk, share the video and submit. Destroy
+the host and security group with the original CloudShell state afterward.
+The host is scheduled to terminate at 03:10:03 UTC October 16; the security
+group still needs explicit cleanup. Recreate only from a new approved plan if
+recording later. No cloud teardown success is claimed yet.
 
-**After feedback, before final submission:** validate a saved Terraform plan
-and deployment in the chosen AWS account; complete cloud authentication and
-image promotion; add TLS/authentication before wider exposure; evaluate
+**After feedback, before final submission:** extend the verified Terraform
+deployment into cloud image promotion and the platform CLI; add
+TLS/authentication before wider exposure; evaluate
 multi-node model storage; validate EKS/GPU feasibility and cost; add external
 uptime probes; review proposal execution and cost checks before enabling a live
 provider; repeat load and recovery measurements in the cloud. The final due

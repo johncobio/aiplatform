@@ -77,4 +77,25 @@ digest-pinned public image, a revision/hash-pinned Qwen model, no IAM/SSH,
 operator-only API access and two-hour automatic host termination. CloudShell
 authentication works. The real saved plan must be reviewed before apply.
 
-The cloud milestone is **pending**, not yet an observed deployment.
+## Verified result and cleanup
+
+The reviewed plan applied successfully (4 creates, no changes/deletions) and
+a real inference request passed at 2026-10-16 01:15:18 UTC. See
+[cloud evidence](../benchmarks/2026-10-15-academy-smoke.md). The temporary host
+is scheduled to terminate at **03:10:03 UTC October 16** (10:10:03 PM CDT
+October 15). Record before then and keep the lab session active.
+
+The original state is in CloudShell's `aiplatform-midpoint` checkout. After
+recording, run `make destroy-academy` there and verify storage/security-group
+cleanup. The group is not removed by OS shutdown. Teardown is still pending.
+An additional saved **cleanup.tfplan** is ready in that same root. Its reviewed
+scope is 0 creates, 0 changes, 4 destroys. Only after recording and confirming
+cleanup, it can be applied with:
+
+```bash
+terraform -chdir=infra/terraform/environments/academy apply cleanup.tfplan
+```
+
+This is an actual deletion command. Do not run it during the live recording.
+If state or infrastructure changed, regenerate and review the destroy plan
+instead of assuming an old plan is current.

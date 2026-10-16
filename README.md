@@ -43,15 +43,17 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
-**Local prototype implemented through V8; AWS deployment pending.** GPU serving
+**Local prototype through V8; Academy EC2 inference verified.** GPU serving
 and live model-generated proposals still need verification. For the October
 midpoint audit, presentation and demo checklist, see [the submission package](docs/midpoint/README.md).
-The runtime must be started and rechecked before a live demo. Implemented:
+The temporary EC2 endpoint is IP-restricted and expires automatically. Recheck
+it before recording; [cloud evidence and limits](docs/benchmarks/2026-10-15-academy-smoke.md)
+distinguish a real request from load/availability claims. Implemented:
 
 - `aiplatform` CLI: `init`, `validate`, `deploy`, `status`, `logs`, `rollback`,
-  `destroy`, `models`, `cluster up|down|status`, against two targets:
+  `destroy`, `models`, `cluster up|down|status`, against three targets:
   `local` (Docker) and `kind` (Kubernetes via Helm, with ingress-nginx and
-  metrics-server installed by the platform).
+  metrics-server installed by the platform), and `gitops` (Argo CD).
 - `deploy/helm/llm-workload`: the Helm chart every Kubernetes target uses
   (hardened Deployment, Service, Ingress, HPA, PDB, model-cache PVC).
 - **CI/CD**: GitHub Actions lint/test/validate/scan on every push; multi-arch
@@ -86,6 +88,10 @@ The runtime must be started and rechecked before a live demo. Implemented:
   depth, model load time).
 - Terraform modules for the V1 AWS footprint (network, ECR, single Graviton
   EC2 instance), validated but **not applied** yet.
+- Separate [Academy EC2 root](infra/terraform/environments/academy/README.md):
+  reviewed Terraform plan applied, digest/hash-pinned model serving verified,
+  native inference metrics, encrypted disk, operator-only API access and a
+  two-hour termination safety net. This is direct Terraform, not a new CLI target.
 
 ## Quick start (local, no cloud)
 
