@@ -188,8 +188,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--function", default=FUNCTION)
     commands = parser.add_subparsers(dest="command", required=True)
-    for command in ("invite", "probe"):
-        commands.add_parser(command).add_argument("portal_url")
+    commands.add_parser("probe").add_argument("portal_url")
+    invite = commands.add_parser("invite")
+    invite.add_argument("portal_url")
+    invite.add_argument(
+        "--instant", action="store_true", help="Open the hosted form without review"
+    )
     for command in ("inspect", "plan", "apply", "destroy"):
         sub = commands.add_parser(command)
         sub.add_argument("receipt")
@@ -211,7 +215,7 @@ def main():
             print("Verified HTTPS page, JavaScript, and unauthenticated request denial.")
         elif args.command == "invite":
             origin = portal_origin(args.portal_url)
-            result = operator.request("invite")
+            result = operator.request("invite", instant=args.instant)
             print(f"Tester link: {origin}/#{result['token']}")
             print(f"Private operator receipt: {result['receipt']}")
         else:

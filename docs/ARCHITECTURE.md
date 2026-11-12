@@ -36,6 +36,11 @@ The public portal role can read and write its request table and emit logs.
 It cannot provision or delete infrastructure. See
 [ADR 0015](adr/0015-hosted-preview-request-portal.md).
 
+Instant demo invites take a shorter path: the guest opens the HTTPS
+invite and Lambda enables a 15-minute comparison of both sample form
+versions. This path uses the existing portal deployment and never
+submits a provisioning request.
+
 This local rehearsal is separate from the LLM workload deploy and repository
 proposal commands. It exercises the user-facing workflow for temporary app
 previews. The portal listens on loopback and holds one preview at a time.

@@ -11,12 +11,15 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .demo_form import compare_versions
+
 ASSETS = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
 }
 TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 SHA = re.compile(r"[a-f0-9]{64}")
+DEMO_SECONDS = 15 * 60
 
 
 class RequestError(Exception):
@@ -75,6 +78,19 @@ def static_asset(event, context):
     return None
 
 
+def guest_input(event, field):
+    raw = event.get("body") or ""
+    if event.get("isBase64Encoded") or not isinstance(raw, str) or len(raw) > 2048:
+        raise RequestError(422, "Send a short JSON request.")
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or set(data) != {field} or not isinstance(data[field], str):
+        raise RequestError(422, f"Send one {field} field.")
+    return data[field]
+
+
 class Portal:
     def __init__(self, store, *, clock=time.time):
         self.store = store
@@ -98,7 +114,11 @@ class Portal:
         path = event.get("rawPath")
         if asset := static_asset(event, context):
             return asset
-        if path != "/api/request" or method not in {"GET", "POST"}:
+        if (method, path) not in {
+            ("GET", "/api/request"),
+            ("POST", "/api/request"),
+            ("POST", "/api/demo"),
+        }:
             raise RequestError(404, "Route not found.")
         auth = (event.get("headers") or {}).get("authorization", "")
         token = auth.removeprefix("Bearer ")
@@ -113,22 +133,33 @@ class Portal:
             raise RequestError(410, "This invite has expired.")
         source = context.get("http", {}).get("sourceIp")
         if row.get("source_ip") and row["source_ip"] != source:
-            raise RequestError(403, "Use the same network that submitted the request.")
+            raise RequestError(403, "Use the same network that opened this preview.")
+        if path == "/api/demo":
+            if row["status"] != "demo_ready":
+                raise RequestError(403, "Open an instant demo invite first.")
+            if row["available_until"] <= now:
+                raise RequestError(410, "This demo window has ended.")
+            email = guest_input(event, "email")
+            if len(email) > 254:
+                raise RequestError(422, "Use a sample email of at most 254 characters.")
+            return response(200, compare_versions(email))
         if method == "GET":
+            if row["status"] == "demo_invited":
+                if row["submit_by"] <= now:
+                    raise RequestError(410, "This invite has expired.")
+                self.change(
+                    row,
+                    status="demo_ready",
+                    source_ip=public_ipv4(source),
+                    available_until=now + DEMO_SECONDS,
+                )
             return response(200, self.guest_view(row, now))
         if row["submit_by"] <= now:
             raise RequestError(410, "This invite is no longer accepting submissions.")
         if row["status"] != "invited":
             raise RequestError(409, "This invite already has a request.")
-        raw = event.get("body") or ""
-        if event.get("isBase64Encoded") or not isinstance(raw, str) or len(raw) > 2048:
-            raise RequestError(422, "Send a short JSON request.")
-        try:
-            data = json.loads(raw)
-        except ValueError:
-            data = None
-        request = data.get("request", "") if isinstance(data, dict) and len(data) == 1 else ""
-        if not isinstance(request, str) or not 0 < len(request.strip()) <= 254:
+        request = guest_input(event, "request")
+        if not 0 < len(request.strip()) <= 254:
             raise RequestError(422, "Enter a request of at most 254 characters.")
         if not request.isprintable():
             raise RequestError(422, "Enter your request on one line.")
@@ -143,6 +174,8 @@ class Portal:
                 result["endpoint"] = row["endpoint"]
             else:
                 result["status"] = "expired"
+        if row["status"] == "demo_ready" and row["available_until"] <= now:
+            result["status"] = "expired"
         return result
 
     def change(self, row, **values):
@@ -161,7 +194,7 @@ class Portal:
             row = {
                 "key": key,
                 "revision": 0,
-                "status": "invited",
+                "status": "demo_invited" if event.get("instant") is True else "invited",
                 "submit_by": now + 1800,
                 "expires_at": now + 7200,
                 "updated_at": now,

@@ -8,7 +8,7 @@ data "archive_file" "portal" {
   output_path = "${path.module}/.terraform/portal.zip"
 
   dynamic "source" {
-    for_each = toset(["__init__.py", "handler.py", "index.html", "app.js"])
+    for_each = toset(["__init__.py", "handler.py", "demo_form.py", "index.html", "app.js"])
     content {
       content  = file("${local.app}/${source.value}")
       filename = "remote_portal/${source.value}"

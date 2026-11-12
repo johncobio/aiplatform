@@ -41,6 +41,28 @@ asynchronously.
 
 ## Demo
 
+### Instant access for a classmate
+
+Run this once per guest shortly before class, after deploying and probing
+the portal:
+
+```bash
+./scripts/remote-preview invite "$PORTAL_URL" --instant
+```
+
+Give the guest only the HTTPS link. They open it and click **Compare
+versions**; no deployment request or operator approval is needed during
+the demo. The invite must be opened within 30 minutes of issue, and the
+guest gets 15 minutes from first opening it. Use a separate invite for
+each guest and keep the same network during the session.
+
+This is the real form running in the already deployed Lambda. It shows
+the version 1 bug and the version 2 fix; it does not launch a new EC2
+instance. Use the saved [Ohio evidence](../benchmarks/2026-11-12-remote-portal-smoke.md)
+when explaining the separate infrastructure workflow.
+
+### Full Terraform workflow, when needed
+
 1. Operator: run `./scripts/remote-preview invite "$PORTAL_URL"`. Give the
    tester only the HTTPS invite link. Keep the receipt in your terminal.
 2. Tester: open the invite and click **Send request**. The default is

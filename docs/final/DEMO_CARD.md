@@ -4,12 +4,14 @@
 a local model proposes a version and lifetime, and Terraform deploys the
 reviewed plan to a restricted AWS preview.
 
-For the remote demo, use the [hosted invite walkthrough](REMOTE_PREVIEW.md)
-and give the guest one HTTPS link. They submit the request and follow the
-status in their browser while you approve the exact plan in your operator
-terminal. They then test the live EC2 form. The
-[hosted rehearsal](../benchmarks/2026-11-12-remote-portal-smoke.md) verified
-that path and cleanup; the test portal was removed.
+For class, prepare the portal and issue an
+[instant HTTPS invite](REMOTE_PREVIEW.md#instant-access-for-a-classmate)
+before presenting. The guest opens the link and clicks **Compare versions**.
+Version 1 accepts the invalid input; version 2 rejects it. The live demo
+form runs in the already deployed Lambda, so no one waits for Terraform.
+Use the [hosted rehearsal](../benchmarks/2026-11-12-remote-portal-smoke.md)
+to show how a separately approved request produced and verified a real
+EC2 preview. That rehearsal's resources were removed.
 
 The local sequence below is a fallback if you cannot provision a new portal.
 

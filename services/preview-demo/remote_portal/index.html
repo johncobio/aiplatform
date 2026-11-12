@@ -20,12 +20,19 @@
 <main>
   <p>AIPLATFORM · GROUP 18</p>
   <h1>Request an AWS preview</h1>
-  <p>Test a sign-up form change before release. The operator reviews each request.</p>
+  <p>Test a sign-up form change before release.</p>
   <p id="status" role="status" aria-live="polite">Checking your invite…</p>
   <form id="request-form" hidden>
     <label for="request">What do you want to test?</label>
     <input id="request" maxlength="254" required value="Deploy version 2 for 15 minutes.">
     <button type="submit">Send request</button>
+  </form>
+  <form id="demo-form" hidden>
+    <p>Try the same fake email on both versions. Nothing is saved or sent.</p>
+    <label for="demo-email">Sample email</label>
+    <input id="demo-email" value="not-an-email" maxlength="254" autocomplete="off">
+    <button id="compare" type="submit">Compare versions</button>
+    <p id="demo-result" role="status" aria-live="polite"></p>
   </form>
   <p id="spec" hidden></p>
   <p id="hint" hidden>Open the AWS form on this same network. Use fake inputs only.</p>

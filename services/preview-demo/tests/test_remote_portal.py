@@ -65,11 +65,11 @@ def test_portal_probe_retries_raw_read_timeout_and_gateway_error():
     assert seen == ["", "", "", "app.js", "request"]
 
 
-def guest(portal, token, method="GET", body=None, ip="8.8.8.8"):
+def guest(portal, token, method="GET", body=None, ip="8.8.8.8", path="/api/request"):
     response = portal.handle(
         {
             "version": "2.0",
-            "rawPath": "/api/request",
+            "rawPath": path,
             "requestContext": {"http": {"method": method, "sourceIp": ip}},
             "headers": {"authorization": f"Bearer {token}", "x-forwarded-for": "1.1.1.1"},
             "body": json.dumps(body) if body is not None else None,
@@ -77,6 +77,40 @@ def guest(portal, token, method="GET", body=None, ip="8.8.8.8"):
         }
     )
     return response["statusCode"], json.loads(response["body"])
+
+
+def test_instant_invite_opens_without_review_and_never_becomes_a_plan():
+    clock = [1000]
+    portal = Portal(MemoryStore(), clock=lambda: clock[0])
+    issued = portal.handle({"action": "invite", "instant": True})["result"]
+    token = issued["token"]
+    receipt = issued["receipt"]
+    clock[0] += 10 * 60  # Preparation time does not consume the preview window.
+    assert guest(portal, token)[1]["status"] == "demo_ready"
+    assert "error" in portal.handle({"action": "start", "receipt": receipt})
+    assert guest(portal, token, "POST", {"request": "Deploy version 2 for 15 minutes."})[0] == 409
+    assert guest(portal, token, "POST", {"email": "not-an-email"}, path="/api/demo") == (
+        200,
+        {"version1": True, "version2": False},
+    )
+    assert guest(portal, token, "POST", {"email": "student@example.com"}, path="/api/demo") == (
+        200,
+        {"version1": True, "version2": True},
+    )
+    assert (
+        guest(portal, token, "POST", {"email": "not-an-email"}, ip="1.1.1.1", path="/api/demo")[0]
+        == 403
+    )
+    assert "email" not in json.dumps(portal.store.rows)
+    clock[0] += 15 * 60
+    assert guest(portal, token)[1]["status"] == "expired"
+    assert guest(portal, token, "POST", {"email": "not-an-email"}, path="/api/demo")[0] == 410
+
+
+def test_regular_invite_cannot_open_instant_demo():
+    portal = Portal(MemoryStore())
+    token = portal.handle({"action": "invite"})["result"]["token"]
+    assert guest(portal, token, "POST", {"email": "not-an-email"}, path="/api/demo")[0] == 403
 
 
 def test_remote_handoff_and_expiry():

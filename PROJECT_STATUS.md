@@ -11,6 +11,13 @@ proposal have not been verified. AWS remains cost-gated (ADR 0005).
 
 ### Remote preview request portal — November 12
 
+- Added instant invites for the class demo: a guest opens the HTTPS link
+  and can compare the real version 1 and version 2 form checks for 15
+  minutes. No operator action or new EC2 instance is required during the
+  guest walkthrough. The instant path passes local tests and awaits a
+  hosted rehearsal; the earlier hosted evidence covers the reviewed
+  Terraform workflow.
+
 - Added an invite-only HTTPS portal implementation with API Gateway,
   Lambda, DynamoDB, bounded traffic, and a narrowly scoped execution role.
   The guest can request a preview and follow status from their own network.

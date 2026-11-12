@@ -33,3 +33,9 @@ a supervised step; it can run from a cloud terminal. Its no-model mode
 supports the exact sample sentence; optional Ollama interpretation needs
 a model on the operator host. A managed model, a hosted operator UI,
 and an HTTPS preview workload can be added separately.
+
+For presentations, an operator may issue an instant invite in advance.
+The first authenticated open starts a 15-minute window for a stateless
+form comparison served directly by Lambda. This is a separate invite
+mode and cannot become a Terraform job. It makes the guest walkthrough
+immediate while retaining the explicit approval boundary for EC2.

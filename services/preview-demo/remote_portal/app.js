@@ -8,6 +8,7 @@ if (fragment) {
 const token = sessionStorage.getItem("preview-invite");
 const labels = {
   invited: "Your invite is ready.",
+  demo_ready: "Your AWS demo is ready. You have 15 minutes from first opening this link.",
   requested: "Request sent. Waiting for the operator.",
   planned: "Deployment planned. Waiting for operator approval.",
   applying: "Terraform is provisioning the preview.",
@@ -39,6 +40,7 @@ async function refresh(method = "GET", body) {
     state = result.status;
     byId("status").textContent = labels[state];
     byId("request-form").hidden = state !== "invited";
+    byId("demo-form").hidden = state !== "demo_ready";
     byId("spec").hidden = !result.version;
     byId("spec").textContent = result.version
       ? `Reviewed spec: version ${result.version} for ${result.minutes} minutes.` : "";
@@ -56,6 +58,29 @@ async function refresh(method = "GET", body) {
 byId("request-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void refresh("POST", {request: byId("request").value});
+});
+byId("demo-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = byId("compare");
+  const output = byId("demo-result");
+  button.disabled = true;
+  output.textContent = "Checking both versions…";
+  try {
+    const response = await fetch("/api/demo", {
+      method: "POST",
+      headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+      body: JSON.stringify({email: byId("demo-email").value}),
+      signal: AbortSignal.timeout(12000),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error ?? "Demo unavailable.");
+    output.textContent = `Version 1: ${result.version1 ? "accepted" : "rejected"}. `
+      + `Version 2: ${result.version2 ? "accepted" : "rejected"}.`;
+  } catch (error) {
+    output.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 void refresh();
 setInterval(() => {
