@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preview Environments</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">AIPLATFORM · CLOUD COMPUTING LAB</p>
+      <h1>Preview Environments</h1>
+      <p class="intro">Give someone a temporary place to test a change before release.</p>
+      <p class="mode" id="mode">Local simulation · No AWS resources</p>
+    </header>
+    <p id="message" role="status" aria-live="polite" hidden></p>
+    <section id="operator" hidden>
+      <h2>Operator console</h2>
+      <p>Create a single-use invite and give it to a tester on this computer.
+        Each link expires after 15 minutes.</p>
+      <button id="invite">Create tester link</button>
+      <div id="share" hidden>
+        <label for="invite-url">Tester link</label>
+        <div class="actions">
+          <input id="invite-url" readonly>
+          <button class="secondary" id="copy">Copy link</button>
+        </div>
+      </div>
+    </section>
+    <section id="guest" hidden>
+      <h2>1. Request a preview</h2>
+      <p>Version 2 fixes a sign-up form that accepts invalid email addresses.</p>
+      <form id="request-form">
+        <label for="request">What do you want to test?</label>
+        <textarea id="request" maxlength="254" required rows="2"
+          placeholder="Deploy version 2 for 30 minutes."></textarea>
+        <p class="hint">Supported: versions 1 or 2, for 15 or 30 minutes.</p>
+        <div class="actions">
+          <button class="secondary" id="example" type="button">Try example</button>
+          <button id="submit">Request preview</button>
+        </div>
+      </form>
+    </section>
+    <section id="status" hidden>
+      <div class="status-heading">
+        <h2 id="status-title">Preview status</h2>
+        <span id="phase" class="badge" aria-live="polite"></span>
+      </div>
+      <p id="spec"></p>
+      <ol id="events" class="timeline"></ol>
+      <div class="actions">
+        <button id="approve" hidden>Approve and start</button>
+        <button class="secondary" id="destroy" hidden>Clear rehearsal slot</button>
+        <a class="button" href="/preview" id="open" hidden>Open preview</a>
+      </div>
+    </section>
+    <section id="sample" hidden>
+      <p><a href="/">← Back to request</a></p>
+      <h2>3. Test the sign-up form</h2>
+      <p id="sample-help">Try the same input on both versions. Nothing is saved or sent.</p>
+      <form id="sample-form">
+        <label for="email">Sample email</label>
+        <input id="email" maxlength="254" value="not-an-email" autocomplete="off">
+        <div class="actions">
+          <button class="secondary" name="version" value="1">Test version 1</button>
+          <button id="test-v2" name="version" value="2">Test version 2</button>
+        </div>
+      </form>
+      <div class="results" aria-live="polite">
+        <div><h3>Version 1 · Baseline</h3><p id="result-1">Waiting for a test.</p></div>
+        <div id="result-card-2"><h3>Version 2 · Preview</h3><p id="result-2">Waiting for a test.</p></div>
+      </div>
+    </section>
+    <footer>CSE 4333 · Group 18</footer>
+  </main>
+</body>
+</html>

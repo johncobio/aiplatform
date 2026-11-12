@@ -3,6 +3,23 @@
 Issue-style backlog grouped by phase. Move items to `PROJECT_STATUS.md`
 "Completed" when done. Keep this honest: if something is dropped, say why.
 
+## Final demo — Preview Environments on Demand
+
+- [x] Build a local browser rehearsal with an expiring invite, approval,
+  status timeline, app version comparison and cleanup.
+- [ ] Run the click-through with a classmate on the demo laptop.
+- [x] Map the bounded spec to a fixed Terraform root; test saved-plan
+  approval, health failure and cleanup without AWS credentials first.
+- [x] Verify read access and save a real model-led plan in Ohio.
+- [x] Verify the local model adapter against the constrained spec.
+- [x] Cost-gate one apply and record deployment, versioned health and teardown.
+- [x] Verify both form submissions over the cloud endpoint in an approved
+  repeat, then confirm cleanup in AWS and Terraform state.
+- [x] Implement the hosted invite portal and IAM-authenticated operator handoff.
+- [x] Apply and tear down the portal once; diagnose the HTTPS smoke timeout.
+- [x] Verify the updated HTTPS probe and invite-to-preview flow in AWS.
+- [ ] Rehearse from a classmate's browser on their intended network.
+
 ## Midpoint submission — October 2026
 
 - [x] Audit tests, Terraform, chart and policy checks with fresh output

@@ -4,36 +4,59 @@ SHELL := /bin/bash
 
 CLI      := cli
 SERVICE  := services/llm-service
+PREVIEW  := services/preview-demo
 TF_DIRS  := $(shell find infra/terraform -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
 
 .PHONY: help setup check lint test test-cli test-service tf-fmt tf-validate helm-lint run-local status logs destroy-local cluster-up cluster-down run-kind destroy-kind run-gitops destroy-gitops dashboard loadtest policy guard chaos
 .PHONY: tf-test plan-academy destroy-academy
+.PHONY: preview-demo test-preview destroy-preview-local destroy-preview-aws destroy-preview-portal
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-setup: ## Install dev dependencies for the CLI and the service
+setup: ## Install dev dependencies for the CLI and services
 	cd $(CLI) && uv sync --extra dev
 	cd $(SERVICE) && uv sync --extra dev
+	cd $(PREVIEW) && uv sync --locked --extra dev
 
 check: lint test tf-validate tf-test helm-lint policy ## Local validation and mocked infrastructure safety tests
 
 lint: ## Ruff lint + format check
 	cd $(CLI) && uv run ruff check . && uv run ruff format --check .
 	cd $(SERVICE) && uv run ruff check . && uv run ruff format --check .
+	cd $(PREVIEW) && uv run --locked --extra dev ruff check . && uv run --locked --extra dev ruff format --check .
 
 fmt: ## Auto-format Python and Terraform
 	cd $(CLI) && uv run ruff check --fix . && uv run ruff format .
 	cd $(SERVICE) && uv run ruff check --fix . && uv run ruff format .
+	cd $(PREVIEW) && uv run --locked --extra dev ruff check --fix . && uv run --locked --extra dev ruff format .
 	terraform fmt -recursive infra/terraform
 
-test: test-cli test-service ## All unit tests
+test: test-cli test-service test-preview ## All unit tests
 
 test-cli:
 	cd $(CLI) && uv run pytest
 
 test-service:
 	cd $(SERVICE) && uv run pytest
+
+test-preview:
+	cd $(PREVIEW) && uv run --locked --extra dev pytest
+
+PREVIEW_PORT ?= 8765
+PREVIEW_MODEL_INTENT ?= 0
+
+preview-demo: ## Start the local browser rehearsal (no AWS or Docker)
+	cd $(PREVIEW) && uv run --locked python -m preview_demo --port "$(PREVIEW_PORT)" $(if $(filter 1,$(PREVIEW_MODEL_INTENT)),--model-intent)
+
+destroy-preview-local: ## Remove the local preview Terraform record
+	./scripts/previewctl destroy
+
+destroy-preview-aws: ## AWS: remove resources owned by the preview workspace
+	./scripts/previewctl --target academy destroy
+
+destroy-preview-portal: ## AWS: remove the hosted portal after closing its EC2 preview
+	terraform -chdir=infra/terraform/environments/preview-portal destroy -input=false
 
 tf-fmt: ## Check Terraform formatting
 	terraform fmt -check -recursive infra/terraform
@@ -51,6 +74,7 @@ policy: ## OPA/Conftest policies for Terraform and the rendered chart (what `aip
 
 tf-test: ## Mocked Academy Terraform safety tests (no AWS calls or charges)
 	terraform -chdir=infra/terraform/environments/academy test
+	terraform -chdir=infra/terraform/environments/preview-academy test
 
 plan-academy: ## AWS read-only: save the Academy plan; requires TF_VAR_operator_cidr and sandbox auth
 	terraform -chdir=infra/terraform/environments/academy init -input=false

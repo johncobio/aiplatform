@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-10-15_
+_Last updated: 2026-11-12_
 
 ## Current phase
 
@@ -8,6 +8,77 @@ _Last updated: 2026-10-15_
 The local reliability experiments are recorded, but this is not a production
 readiness claim. GPU inference and a live model-generated infrastructure
 proposal have not been verified. AWS remains cost-gated (ADR 0005).
+
+### Remote preview request portal — November 12
+
+- Added an invite-only HTTPS portal implementation with API Gateway,
+  Lambda, DynamoDB, bounded traffic, and a narrowly scoped execution role.
+  The guest can request a preview and follow status from their own network.
+- The operator CLI keeps saved-plan approval and Terraform outside the
+  public service. Tests cover guest isolation, expiry, exact approval, the
+  operator handoff, and cleanup. See the [runbook](docs/final/REMOTE_PREVIEW.md).
+- The first approved Ohio apply created all portal resources. The HTTPS
+  probe timed out before the invite flow; no EC2 preview was launched.
+  AWS inventory and Terraform state confirmed removal.
+- The separately approved retry passed public HTTPS, invite submission
+  and duplicate rejection, saved-plan approval, live version 2 readiness,
+  and both form inputs. AWS and both Terraform states confirmed teardown.
+  The automated guest and operator ran from one machine; a classmate's
+  browser rehearsal is still pending. See the
+  [hosted smoke record](docs/benchmarks/2026-11-12-remote-portal-smoke.md).
+
+### Final demo: model-led AWS preview — November 12
+
+- Moved the preview Terraform root to the project's selected Region,
+  `us-east-2`. Read-only checks verified the Free plan, default VPC, three
+  available default subnets, and t3.small eligibility. The real saved plan
+  proposes three creates and permits TCP 8000 from the demo laptop only.
+- Added optional loopback Qwen interpretation to the preview portal and CLI.
+  The model can return only an allowed version and lifetime. Verified two
+  accepted requests, one rejection, one local Terraform lifecycle, and one
+  model-led plan against AWS. The browser's deployment stages are simulated.
+- Applied the approved plan. The live endpoint reported version 2 ready
+  22.41 seconds after the apply command began. Destroy took 30.96 seconds;
+  AWS inventory and Terraform state confirmed cleanup.
+- In a separately approved repeat, the maintained verifier reached live
+  readiness and checked both form responses in 22.32 seconds from apply
+  command start. Destroy took 28.16 seconds; AWS and Terraform confirmed
+  the instance, boot volume, and security group were gone. See the
+  [smoke record](docs/benchmarks/2026-11-12-ohio-preview-smoke.md),
+  [demo card](docs/final/DEMO_CARD.md), and
+  [operator runbook](docs/final/PREVIEW_AWS.md).
+
+### Final demo Terraform preflight — November 12
+
+- Added `scripts/previewctl` and separate local/Academy Terraform roots.
+  The operator reviews planned actions and supplies the saved plan's digest.
+  The Academy root pins the expected account, limits ingress to one IP, and
+  uses a dependency-free sample with a boot-time expiry backstop.
+- Three local CLI plan/apply/verify/destroy cycles passed. Both versions of
+  the cloud sample ran successfully over loopback. Tests cover tampered
+  approval, lock contention, unreachable health checks and mocked AWS
+  constraints. Full local checks and Checkov passed.
+- No authenticated AWS calls were made. Next: use the intended standard AWS
+  account for identity/network checks and a read-only plan. A real apply needs a
+  separate cost approval. The browser and model are not wired to this runner.
+  See the [operator runbook](docs/final/PREVIEW_AWS.md).
+
+### Final demo rehearsal — November 12
+
+- Added `make preview-demo`: a local browser portal with a single-use guest
+  invite, strict version/lifetime validation, operator approval, timestamped
+  progress, an expiring preview, and a real before/after sign-up form test.
+- The portal binds to loopback. The parser and deployment stages are
+  simulated; they make no model, Terraform or AWS calls. No AWS resources
+  were created or inspected for this work.
+- The local HTTP workflow passed three consecutive invite-to-cleanup cycles
+  and the process shut down cleanly. Full local checks cover workflow
+  validation, permissions, expiry and cleanup. Browser automation was
+  unavailable; an independent click-through is pending.
+- See the [walkthrough](docs/final/PREVIEW_DEMO.md) and
+  [ADR 0013](docs/adr/0013-preview-environment-rehearsal.md). Next: rehearse
+  with a tester, then map the bounded spec to a fixed Terraform plan and
+  test runner failure and cleanup before provisioning AWS.
 
 ### Midpoint audit — October 15
 

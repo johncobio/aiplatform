@@ -11,6 +11,69 @@ running, health-checked, observable LLM workload. The platform owns the
 "how" (build, push, deploy, verify); the developer owns the "what"
 (`aiplatform.yaml`).
 
+## Final demo track: Preview Environments on Demand
+
+The [hosted request portal](final/REMOTE_PREVIEW.md) provides a separate
+path for a guest on a different computer. The
+[hosted Ohio rehearsal](benchmarks/2026-11-12-remote-portal-smoke.md)
+verified HTTPS, one invite, the operator handoff, the resulting EC2 form,
+and teardown. An independent second-device rehearsal is still pending.
+
+```mermaid
+flowchart LR
+    Guest[Guest browser with invite] --> Gateway[API Gateway HTTPS]
+    Gateway --> PortalFn[Lambda guest routes]
+    PortalFn --> Requests[(DynamoDB invite and status)]
+    OperatorCLI[Operator CLI] --> Admin[Direct Lambda invoke via IAM]
+    Admin --> Requests
+    OperatorCLI --> PlanReview[Review and apply saved Terraform plan]
+    PlanReview --> PreviewEC2[EC2 allowed from guest IPv4 only]
+    OperatorCLI -->|Publish issued endpoint| Admin
+    Guest -->|Open preview| PreviewEC2
+```
+
+The public portal role can read and write its request table and emit logs.
+It cannot provision or delete infrastructure. See
+[ADR 0015](adr/0015-hosted-preview-request-portal.md).
+
+This local rehearsal is separate from the LLM workload deploy and repository
+proposal commands. It exercises the user-facing workflow for temporary app
+previews. The portal listens on loopback and holds one preview at a time.
+
+```mermaid
+flowchart LR
+    Tester[Tester browser] --> Portal[Local FastAPI portal]
+    Operator[Operator browser] --> Portal
+    Portal --> Spec[Strict parser: version and lifetime]
+    Spec --> Approval[Operator approval]
+    Approval --> Mock[Simulated plan, start and health check]
+    Mock --> Sample[Local versioned sign-up form]
+    Mock --> Status[Timestamped status and events]
+    Status --> Portal
+    Sample --> Expiry[Expiry or operator removal]
+```
+
+The portal can call a local model to interpret intent; it makes no Terraform
+or AWS calls. The separate operator command can use the same adapter and
+maps its result to a fixed Terraform root. Operator
+approval pins an exact saved plan; the Academy path then checks the actual
+endpoint for the requested version. Both local Terraform and the Ohio
+project have completed the plan, apply, readiness, and cleanup sequence.
+See the [measured Ohio run](benchmarks/2026-11-12-ohio-preview-smoke.md).
+See [the operator runbook](final/PREVIEW_AWS.md)
+and [ADR 0014](adr/0014-fixed-terraform-preview-runner.md).
+
+```mermaid
+flowchart LR
+    Operator[Operator terminal] --> Parser[Bounded version and lifetime]
+    Parser --> Plan[Fixed Terraform root and saved plan]
+    Plan --> Review[Review actions and approve plan hash]
+    Review --> Local[Local Terraform record]
+    Review --> EC2[Ohio EC2: TCP 8000 from operator IP]
+    EC2 --> Health[Verify readiness and form responses]
+    Health --> Cleanup[Destroy from same state]
+```
+
 ## System overview
 
 ```mermaid

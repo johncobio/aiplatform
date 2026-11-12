@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee -a /var/log/aiplatform-preview-bootstrap.log /dev/console) 2>&1
+
+# A persisted absolute deadline survives reboot. Destroy still owns SG cleanup.
+deadline="$(date -u -d '+${minutes} minutes' '+%Y-%m-%d %H:%M:%S UTC')"
+cat >/etc/systemd/system/aiplatform-preview-expiry.service <<'UNIT'
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl poweroff
+UNIT
+cat >/etc/systemd/system/aiplatform-preview-expiry.timer <<UNIT
+[Timer]
+OnCalendar=$deadline
+Persistent=true
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now aiplatform-preview-expiry.timer
+
+install -d -m 0755 /opt/aiplatform-preview
+printf '%s' '${sample}' | base64 -d > /opt/aiplatform-preview/sample.py
+chmod 0644 /opt/aiplatform-preview/sample.py
+
+cat >/etc/systemd/system/aiplatform-preview.service <<'UNIT'
+[Unit]
+Description=Temporary sign-up preview
+After=network.target
+
+[Service]
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ExecStart=/usr/bin/python3 /opt/aiplatform-preview/sample.py ${version} 0.0.0.0 8000
+Restart=on-failure
+
+UNIT
+
+systemctl daemon-reload
+systemctl start aiplatform-preview.service

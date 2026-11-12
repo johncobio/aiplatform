@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  background: #f1f5f3;
+  color: #172b28;
+  line-height: 1.55;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+main { max-width: 48rem; margin: auto; padding: 2.5rem 1.15rem; }
+header { margin-bottom: 1.5rem; }
+h1 { margin: .2rem 0; font-size: clamp(2rem, 7vw, 3.4rem); line-height: 1.08; }
+h2 { margin: 0 0 .65rem; font-size: 1.3rem; }
+h3 { margin: 0; font-size: 1rem; }
+p { margin: .45rem 0 .8rem; }
+.eyebrow, .hint, footer { color: #455f5a; font-size: .85rem; }
+.eyebrow { font-weight: 750; letter-spacing: .08em; }
+.intro { font-size: 1.08rem; }
+.mode, .badge {
+  background: #dff0e9;
+  color: #185143;
+  border-radius: 1rem;
+  display: inline-block;
+  padding: .25rem .75rem;
+  font-size: .85rem;
+  font-weight: 700;
+}
+section {
+  background: white;
+  border: 1px solid #d5e2dd;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+label { display: block; font-weight: 700; margin: .65rem 0 .25rem; }
+textarea, input {
+  border: 1px solid #79938b;
+  border-radius: .5rem;
+  padding: .6rem .7rem;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+}
+.actions, .status-heading, .results { display: flex; gap: .65rem; flex-wrap: wrap; }
+.actions { margin-top: .6rem; }
+.status-heading { align-items: baseline; justify-content: space-between; }
+button, .button {
+  background: #0d5749;
+  color: white;
+  border: 1px solid #0d5749;
+  border-radius: .5rem;
+  padding: .55rem .85rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+button:disabled { opacity: .55; cursor: not-allowed; }
+button.secondary { color: #124b40; background: white; }
+a { color: #0d5749; }
+:focus-visible { outline: 3px solid #2265ae; outline-offset: 3px; }
+#message { background: #fff3de; padding: .7rem .9rem; border-radius: .5rem; }
+.timeline { padding-left: 1.4rem; }
+.timeline li { margin: .35rem 0; }
+.results { margin-top: 1rem; }
+.results > div { flex: 1 1 12rem; padding: .85rem; background: #f1f5f3; border-radius: .5rem; }
+.results p { margin-bottom: 0; }
+footer { padding-top: .3rem; }

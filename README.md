@@ -43,6 +43,16 @@ phases; see the roadmap below and `PROJECT_STATUS.md` for what is real today.
 
 ## Status
 
+**Final demo rehearsal:** Run `make preview-demo` and open the private
+operator link printed in your terminal. A tester can request a temporary
+version 2 preview and check a sign-up form fix in the browser after operator
+approval. This is a loopback simulation of deployment with real sample
+form behavior. See the [setup and walkthrough](docs/final/PREVIEW_DEMO.md).
+To exercise real local Terraform and prepare the Academy plan, use
+[`scripts/previewctl` and the operator runbook](docs/final/PREVIEW_AWS.md).
+For a tester on a different computer, see the
+[hosted invite portal runbook](docs/final/REMOTE_PREVIEW.md).
+
 **Local prototype through V8; Academy EC2 inference verified.** GPU serving
 and live model-generated proposals still need verification. For the October
 midpoint audit, presentation and demo checklist, see [the submission package](docs/midpoint/README.md).

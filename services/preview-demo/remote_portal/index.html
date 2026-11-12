@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request an AWS preview</title>
+  <script src="/app.js" defer></script>
+  <style>
+    :root { color-scheme: light; font: 17px/1.55 system-ui, sans-serif; background: #edf4f0; color: #18332b; }
+    main { margin: 3rem auto; padding: 1.6rem; max-width: 35rem; background: white; border: 1px solid #cadbd0; border-radius: 1rem; }
+    h1 { line-height: 1.15; }
+    label, input { display: block; margin: .4rem 0; }
+    input { width: 100%; box-sizing: border-box; padding: .6rem; font: inherit; }
+    button, #open { display: inline-block; padding: .55rem .8rem; background: #135741; color: white; border-radius: .4rem; border: 0; font: inherit; }
+    button:disabled { opacity: .6; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <p>AIPLATFORM · GROUP 18</p>
+  <h1>Request an AWS preview</h1>
+  <p>Test a sign-up form change before release. The operator reviews each request.</p>
+  <p id="status" role="status" aria-live="polite">Checking your invite…</p>
+  <form id="request-form" hidden>
+    <label for="request">What do you want to test?</label>
+    <input id="request" maxlength="254" required value="Deploy version 2 for 15 minutes.">
+    <button type="submit">Send request</button>
+  </form>
+  <p id="spec" hidden></p>
+  <p id="hint" hidden>Open the AWS form on this same network. Use fake inputs only.</p>
+  <a id="open" target="_blank" rel="noopener noreferrer" hidden>Open AWS preview</a>
+</main>
+</body>
+</html>
